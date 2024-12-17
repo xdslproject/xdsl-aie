@@ -28,7 +28,7 @@ reportMissingModuleSource = false
 enableTypeIgnoreComments = false
 enableExperimentalFeatures = true
 typeCheckingMode = "strict"
-"include" = ["xdsl-aie"]
+"include" = ["xdsl_aie"]
 
 [tool.ruff]
 target-version = "py310"
