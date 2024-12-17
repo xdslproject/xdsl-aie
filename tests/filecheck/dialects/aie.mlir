@@ -1,6 +1,6 @@
 // RUN: XDSL_ROUNDTRIP
 // RUN: AIE_ROUNDTRIP
 
-"test.op"() : () -> ()
+arith.constant 5 : i32
 
-// CHECK: "test.op"() : () -> ()
+// CHECK: arith.constant 5 : i32
