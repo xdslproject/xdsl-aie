@@ -1,0 +1,37 @@
+[project]
+name = "xdsl-aie"
+description = "xDSL with MLIR-AIE dialect extensions"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT License" }
+version = "0.0.1"
+
+dependencies = [
+    "xdsl>=0.25.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "xdsl[dev]==0.25.0",
+]
+
+[tool.pyright]
+reportImportCycles = false
+reportMissingModuleSource = false
+enableTypeIgnoreComments = false
+enableExperimentalFeatures = true
+typeCheckingMode = "strict"
+"include" = ["xdsl-aie"]
+
+[tool.ruff]
+target-version = "py310"
+extend-include = ["*.ipynb", "*.pyi"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "PT", "TID251"]
+ignore = [
+    "E741",  # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
+    "PT006", # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
+    "PT011", # https://beta.ruff.rs/docs/rules/pytest-raises-too-broad/
+    "PT012", # https://beta.ruff.rs/docs/rules/pytest-raises-with-multiple-statements/
+]
