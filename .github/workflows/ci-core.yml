@@ -35,4 +35,4 @@ jobs:
       run: uv sync --extra dev
 
     - name: Run all tests
-      run: lit tests/filecheck -v
+      run: uv run lit tests/filecheck -v
