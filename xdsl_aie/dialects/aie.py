@@ -283,19 +283,25 @@ class BufferOp(IRDLOperation):
 @irdl_op_definition
 class TileOp(IRDLOperation):
     name = "aie.tile"
-    col = attr_def(IntegerAttr[IntegerType])
-    row = attr_def(IntegerAttr[IntegerType])
+    col = prop_def(IntegerAttr[IntegerType])
+    row = prop_def(IntegerAttr[IntegerType])
     result = result_def(IndexType())
 
-    def __init__(self, col: IntegerAttr[IntegerType], row: IntegerAttr[IntegerType]):
+    def __init__(
+        self, col: int | IntegerAttr[IntegerType], row: int | IntegerAttr[IntegerType]
+    ):
+        if isinstance(col, int):
+            col = IntegerAttr.from_int_and_width(col, 32)
+        if isinstance(row, int):
+            row = IntegerAttr.from_int_and_width(row, 32)
         super().__init__(
-            attributes={"col": col, "row": row}, result_types=[IndexType()]
+            properties={"col": col, "row": row}, result_types=[IndexType()]
         )
 
     def print(self, printer: Printer):
         printer.print("(")
         printer.print(self.col.value.data)
-        printer.print(",")
+        printer.print(", ")
         printer.print(self.row.value.data)
         printer.print(")")
 
