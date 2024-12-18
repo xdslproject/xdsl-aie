@@ -8,4 +8,3 @@
 
 // CHECK: %{{.*}} = aie.tile(1, 2)
 // CHECK-GENERIC:   %{{.*}} = "aie.tile"() <{{{["]?}}col{{["]?}} = 1 : i32, {{["]?}}row{{["]?}} = 2 : i32}> : () -> index
-

@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     I32,
     AnyIntegerAttr,
     ArrayAttr,
+    BoolAttr,
     Float32Type,
     IndexType,
     IntAttr,
@@ -35,14 +36,17 @@ from xdsl.ir import (
     Attribute,
     AttributeInvT,
     Block,
+    Data,
     Dialect,
     EnumAttribute,
+    OpaqueSyntaxAttribute,
     Operation,
     OpResult,
     ParametrizedAttribute,
     Region,
     SSAValue,
     StrEnum,
+    TypeAttribute,
 )
 from xdsl.irdl import (
     IRDLOperation,
@@ -59,7 +63,7 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
@@ -170,7 +174,7 @@ class BufferTypeAttr(EnumAttribute[BufferTypeEnum]):
 
 
 @irdl_attr_definition
-class ObjectFIFO(Generic[AttributeInvT], ParametrizedAttribute):
+class ObjectFIFO(Generic[AttributeInvT], ParametrizedAttribute, TypeAttribute):
     name = "aie.objectfifo"
 
     buffer: ParameterDef[AttributeInvT]
@@ -199,6 +203,45 @@ class ObjectFIFOSubview(Generic[AttributeInvT], ParametrizedAttribute):
         shape: Iterable[int | IntAttr],
     ) -> ObjectFIFOSubview[AttributeInvT]:
         return ObjectFIFOSubview([builtin.MemRefType(element_type, shape)])
+
+
+class BDDimLayout(tuple[int]): ...
+
+
+class BDDimLayoutArray(tuple[BDDimLayout, ...]): ...
+
+
+class BDDimLayoutArrayArray(tuple[BDDimLayoutArray, ...]): ...
+
+
+@irdl_attr_definition
+class BDDimLayoutArrayAttr(Data[BDDimLayoutArray], OpaqueSyntaxAttribute):
+    name = "aie.bd_dim_layout_array"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> BDDimLayoutArray:
+        parser.parse_punctuation("[")
+        parser.parse_punctuation("]")
+        return BDDimLayoutArray(tuple())
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string(f"{list(self.data)}")
+
+
+@irdl_attr_definition
+class BDDimLayoutArrayArrayAttr(Data[BDDimLayoutArrayArray], OpaqueSyntaxAttribute):
+    name = "aie.bd_dim_layout_array_array"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> BDDimLayoutArrayArray:
+        parser.parse_punctuation("[")
+        parser.parse_punctuation("[")
+        parser.parse_punctuation("]")
+        parser.parse_punctuation("]")
+        return BDDimLayoutArrayArray(tuple(tuple()))
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string("[[]]")
 
 
 @irdl_op_definition
@@ -1068,37 +1111,53 @@ class ObjectFIFOSubviewAccessOp(IRDLOperation):
 class ObjectFifoOp(IRDLOperation):
     name = "aie.objectfifo"
 
-    elemNumber = attr_def(IntegerAttr[IntegerType])
     producerTile = operand_def(IndexType())
     consumerTiles = var_operand_def(IndexType())
-    sym_name = attr_def(StringAttr)
-    object_fifo = attr_def(ObjectFIFO[Attribute])
+
+    sym_name = prop_def(StringAttr)
+
+    elemNumber = prop_def(IntegerAttr[IntegerType])
+    elemType = prop_def(ObjectFIFO[Attribute])
+
+    dimensionsToStream = prop_def(BDDimLayoutArrayAttr)
+    dimensionsFromStreamPerConsumer = prop_def(BDDimLayoutArrayArrayAttr)
+
+    via_DMA = prop_def(BoolAttr)
+    plio = prop_def(BoolAttr)
+    disable_synchronization = prop_def(BoolAttr)
 
     traits = traits_def(SymbolOpInterface(), HasParent(DeviceOp))
 
     def __init__(
         self,
-        elemNumber: IntegerAttr[IntegerType],
         producerTile: Operation | SSAValue,
         consumerTiles: list[Operation | SSAValue],
+        name: str,
+        elemNumber: IntegerAttr[IntegerType],
         referenced_type: Attribute,
         shape: Iterable[int | IntAttr],
-        name: str,
     ):
-        object_fifo = ObjectFIFO[Attribute].from_element_type_and_shape(
+        elemType = ObjectFIFO[Attribute].from_element_type_and_shape(
             referenced_type, shape
         )
         super().__init__(
-            attributes={
+            properties={
+                "dimensionsFromStreamPerConsumer": BDDimLayoutArrayArrayAttr(
+                    BDDimLayoutArrayArray(tuple(tuple()))
+                ),
+                "dimensionsToStream": BDDimLayoutArrayAttr(BDDimLayoutArray(tuple())),
+                "disable_synchronization": IntegerAttr.from_int_and_width(0, 1),
                 "elemNumber": elemNumber,
-                "object_fifo": object_fifo,
+                "elemType": elemType,
+                "plio": IntegerAttr.from_int_and_width(0, 1),
                 "sym_name": StringAttr(name),
+                "via_DMA": IntegerAttr.from_int_and_width(0, 1),
             },
-            operands=[producerTile, consumerTiles],
+            operands=[producerTile, *consumerTiles],
         )
 
     def print(self, printer: Printer):
-        printer.print(" @", self.sym_name.data, "( ", self.producerTile, ", { ")
+        printer.print(" @", self.sym_name.data, "(", self.producerTile, ", {")
         for i in range(len(self.consumerTiles) - 1):
             printer.print(self.consumerTiles[i], ", ")
 
@@ -1107,7 +1166,7 @@ class ObjectFifoOp(IRDLOperation):
 
         printer.print(
             ") : !aie.objectfifo<",
-            self.object_fifo.buffer,
+            self.elemType.buffer,
             ">",
         )
 
@@ -1140,7 +1199,7 @@ class ObjectFifoOp(IRDLOperation):
         referenced_type = objectfifo_type.element_type
 
         object_fifo = ObjectFifoOp(
-            elemNumber, producerTile, consumerTiles, referenced_type, shape, name
+            producerTile, consumerTiles, name, elemNumber, referenced_type, shape
         )
 
         return object_fifo
@@ -1535,6 +1594,8 @@ AIE = Dialect(
         EndOp,
     ],
     [
+        BDDimLayoutArrayAttr,
+        BDDimLayoutArrayArrayAttr,
         WireBundleAttr,
         ObjectFIFO,
         ObjectFIFOSubview,
