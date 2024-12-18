@@ -105,14 +105,9 @@ class AIEDeviceEnum(IntStrEnum):
     npu2 = "npu2"
 
 
-class ObjectFifoPortEnum(StrEnum):
-    Produce = "Produce"
+class ObjectFifoPortEnum(IntStrEnum):
     Consume = "Consume"
-
-
-@irdl_attr_definition
-class ObjectFifoPortAttr(EnumAttribute[ObjectFifoPortEnum]):
-    name = "aie.port"
+    Produce = "Produce"
 
 
 class DMAChannelDirEnum(StrEnum):
@@ -193,7 +188,7 @@ class ObjectFIFO(Generic[AttributeInvT], ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
-class ObjectFIFOSubview(Generic[AttributeInvT], ParametrizedAttribute):
+class ObjectFIFOSubview(Generic[AttributeInvT], ParametrizedAttribute, TypeAttribute):
     name = "aie.objectfifosubview"
 
     buffer: ParameterDef[builtin.MemRefType[AttributeInvT]]
@@ -961,15 +956,15 @@ class NextBDOp(IRDLOperation):
 class ObjectFifoAcquireOp(IRDLOperation):
     name = "aie.objectfifo.acquire"
 
-    port = attr_def(ObjectFifoPortAttr)
-    size = attr_def(IntegerAttr[IntegerType])
-    object_fifo = attr_def(SymbolRefAttr)
+    port = prop_def(IntegerAttr[IntegerType])
+    size = prop_def(IntegerAttr[IntegerType])
+    objFifo_name = prop_def(SymbolRefAttr)
 
     result = result_def(ObjectFIFOSubview)
 
     def __init__(
         self,
-        port: ObjectFifoPortAttr,
+        port: IntegerAttr[IntegerType],
         size: IntegerAttr[IntegerType],
         object_fifo: str | SymbolRefAttr,
         shape: Iterable[int | IntAttr],
@@ -982,13 +977,15 @@ class ObjectFifoAcquireOp(IRDLOperation):
             element_type, shape
         )
         super().__init__(
-            attributes={"port": port, "size": size, "object_fifo": object_fifo},
+            properties={"objFifo_name": object_fifo, "port": port, "size": size},
             result_types=[result_subview],
         )
 
     def print(self, printer: Printer):
-        printer.print(f" @{self.object_fifo.root_reference.data}")
-        printer.print(f"( {self.port.data}, {self.size.value.data} )")
+        printer.print(f" @{self.objFifo_name.root_reference.data}")
+        printer.print(
+            f"({ObjectFifoPortEnum.from_int(self.port.value.data).value}, {self.size.value.data})"
+        )
         printer.print(" : !aie.objectfifosubview<")
         assert isa(self.result.type, ObjectFIFOSubview[Attribute])
         printer.print(self.result.type.buffer)
@@ -998,8 +995,7 @@ class ObjectFifoAcquireOp(IRDLOperation):
     def parse(cls, parser: Parser) -> ObjectFifoAcquireOp:
         object_fifo = SymbolRefAttr(parser.parse_symbol_name())
         parser.parse_characters("(")
-        port = ObjectFifoPortAttr(ObjectFifoPortAttr.parse_parameter(parser))
-
+        port = parser.parse_str_enum(ObjectFifoPortEnum)
         parser.parse_characters(",")
         size = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
         parser.parse_characters(")")
@@ -1012,7 +1008,13 @@ class ObjectFifoAcquireOp(IRDLOperation):
         shape = ofifo_type.shape
         element_type = ofifo_type.element_type
 
-        return ObjectFifoAcquireOp(port, size, object_fifo, shape, element_type)
+        return ObjectFifoAcquireOp(
+            IntegerAttr.from_int_and_width(port.get_int(), 32),
+            size,
+            object_fifo,
+            shape,
+            element_type,
+        )
 
 
 @irdl_op_definition
@@ -1220,13 +1222,13 @@ class ObjectFifoOp(IRDLOperation):
 class ObjectFIFOReleaseOp(IRDLOperation):
     name = "aie.objectfifo.release"
 
-    port = attr_def(ObjectFifoPortAttr)
-    size = attr_def(IntegerAttr[IntegerType])
-    object_fifo = attr_def(SymbolRefAttr)
+    port = prop_def(IntegerAttr[IntegerType])
+    size = prop_def(IntegerAttr[IntegerType])
+    objFifo_name = prop_def(SymbolRefAttr)
 
     def __init__(
         self,
-        port: ObjectFifoPortAttr,
+        port: IntegerAttr[IntegerType],
         size: IntegerAttr[IntegerType],
         object_fifo: str | SymbolRefAttr,
     ):
@@ -1234,16 +1236,14 @@ class ObjectFIFOReleaseOp(IRDLOperation):
             object_fifo = SymbolRefAttr(object_fifo)
 
         super().__init__(
-            attributes={"port": port, "size": size, "object_fifo": object_fifo}
+            properties={"objFifo_name": object_fifo, "port": port, "size": size}
         )
 
     def print(self, printer: Printer):
         printer.print(
             " ",
-            self.object_fifo,
-            " (",
-            "Produce" if self.port.data == ObjectFifoPortEnum.Produce else "Consume",
-            ", ",
+            self.objFifo_name,
+            f"({ObjectFifoPortEnum.from_int(self.port.value.data).value}, ",
             self.size.value.data,
             ")",
         )
@@ -1252,14 +1252,16 @@ class ObjectFIFOReleaseOp(IRDLOperation):
     def parse(cls, parser: Parser) -> ObjectFIFOReleaseOp:
         object_fifo = SymbolRefAttr(parser.parse_symbol_name())
         parser.parse_characters("(")
-        port = ObjectFifoPortAttr(ObjectFifoPortAttr.parse_parameter(parser))
+        port = parser.parse_str_enum(ObjectFifoPortEnum)
         parser.parse_characters(",")
 
         size = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
 
         parser.parse_characters(")")
 
-        return ObjectFIFOReleaseOp(port, size, object_fifo)
+        return ObjectFIFOReleaseOp(
+            IntegerAttr.from_int_and_width(port.get_int(), 32), size, object_fifo
+        )
 
 
 @irdl_op_definition
