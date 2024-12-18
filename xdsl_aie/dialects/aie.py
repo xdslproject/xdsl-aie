@@ -74,6 +74,8 @@ from xdsl.utils.hints import isa
 
 CASCADE_SIZE = 384
 
+# Attributes:
+
 
 class AIEDeviceEnum(StrEnum):
     xcvc1902 = auto()
@@ -84,16 +86,6 @@ class AIEDeviceAttr(EnumAttribute[AIEDeviceEnum]):
     name = "aie.device_attr"
 
 
-class ObjectFifoPortEnum(StrEnum):
-    Produce = "Produce"
-    Consume = "Consume"
-
-
-@irdl_attr_definition
-class ObjectFifoPortAttr(EnumAttribute[ObjectFifoPortEnum]):
-    name = "aie.port"
-
-
 class DMAChannelDirEnum(StrEnum):
     S2MM = "S2MM"
     MM2S = "MM2S"
@@ -102,24 +94,6 @@ class DMAChannelDirEnum(StrEnum):
 @irdl_attr_definition
 class DMAChannelDirAttr(EnumAttribute[DMAChannelDirEnum]):
     name = "aie.channel_dir"
-
-
-class WireBundleEnum(StrEnum):
-    Core = "Core"
-    DMA = "DMA"
-    FIFO = "FIFO"
-    South = "South"
-    West = "West"
-    North = "North"
-    East = "East"
-    PLIO = "PLIO"
-    NOC = "NOC"
-    Trace = "Trace"
-
-
-@irdl_attr_definition
-class WireBundleAttr(EnumAttribute[WireBundleEnum]):
-    name = "aie.wire_bundle"
 
 
 class LockActionEnum(StrEnum):
@@ -143,6 +117,37 @@ class LockBlockingAttr(EnumAttribute[LockActionEnum]):
     name = "aie.lock_blocking"
 
 
+class ObjectFifoPortEnum(StrEnum):
+    Produce = "Produce"
+    Consume = "Consume"
+
+
+@irdl_attr_definition
+class ObjectFifoPortAttr(EnumAttribute[ObjectFifoPortEnum]):
+    name = "aie.port"
+
+
+class WireBundleEnum(StrEnum):
+    Core = "Core"
+    DMA = "DMA"
+    FIFO = "FIFO"
+    South = "South"
+    West = "West"
+    North = "North"
+    East = "East"
+    PLIO = "PLIO"
+    NOC = "NOC"
+    Trace = "Trace"
+
+
+@irdl_attr_definition
+class WireBundleAttr(EnumAttribute[WireBundleEnum]):
+    name = "aie.wire_bundle"
+
+
+# TODO: buffer type no longer exists?
+
+
 class BufferTypeEnum(StrEnum):
     A = "A"
     B = "B"
@@ -151,6 +156,9 @@ class BufferTypeEnum(StrEnum):
 @irdl_attr_definition
 class BufferTypeAttr(EnumAttribute[BufferTypeEnum]):
     name = "aie.buffer_type"
+
+
+# Type Attributes
 
 
 @irdl_attr_definition
@@ -183,6 +191,9 @@ class ObjectFIFOSubview(Generic[AttributeInvT], ParametrizedAttribute):
         shape: Iterable[int | IntAttr],
     ) -> ObjectFIFOSubview[AttributeInvT]:
         return ObjectFIFOSubview([builtin.MemRefType(element_type, shape)])
+
+
+# Operations
 
 
 @irdl_op_definition
