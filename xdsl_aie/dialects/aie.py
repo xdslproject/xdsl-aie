@@ -72,8 +72,6 @@ from xdsl.traits import (
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-i8 = IntegerType(8)
-
 CASCADE_SIZE = 384
 
 
