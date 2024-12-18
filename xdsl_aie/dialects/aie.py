@@ -977,13 +977,15 @@ class ObjectFifoAcquireOp(IRDLOperation):
             element_type, shape
         )
         super().__init__(
-                properties={"objFifo_name": object_fifo, "port": port, "size": size},
+            properties={"objFifo_name": object_fifo, "port": port, "size": size},
             result_types=[result_subview],
         )
 
     def print(self, printer: Printer):
         printer.print(f" @{self.objFifo_name.root_reference.data}")
-        printer.print(f"({ObjectFifoPortEnum.from_int(self.port.value.data).value}, {self.size.value.data})")
+        printer.print(
+            f"({ObjectFifoPortEnum.from_int(self.port.value.data).value}, {self.size.value.data})"
+        )
         printer.print(" : !aie.objectfifosubview<")
         assert isa(self.result.type, ObjectFIFOSubview[Attribute])
         printer.print(self.result.type.buffer)
@@ -1006,7 +1008,13 @@ class ObjectFifoAcquireOp(IRDLOperation):
         shape = ofifo_type.shape
         element_type = ofifo_type.element_type
 
-        return ObjectFifoAcquireOp(IntegerAttr.from_int_and_width(port.get_int(), 32), size, object_fifo, shape, element_type)
+        return ObjectFifoAcquireOp(
+            IntegerAttr.from_int_and_width(port.get_int(), 32),
+            size,
+            object_fifo,
+            shape,
+            element_type,
+        )
 
 
 @irdl_op_definition
@@ -1228,7 +1236,7 @@ class ObjectFIFOReleaseOp(IRDLOperation):
             object_fifo = SymbolRefAttr(object_fifo)
 
         super().__init__(
-                properties={"objFifo_name": object_fifo, "port": port, "size": size}
+            properties={"objFifo_name": object_fifo, "port": port, "size": size}
         )
 
     def print(self, printer: Printer):
@@ -1251,7 +1259,9 @@ class ObjectFIFOReleaseOp(IRDLOperation):
 
         parser.parse_characters(")")
 
-        return ObjectFIFOReleaseOp(IntegerAttr.from_int_and_width(port.get_int(), 32), size, object_fifo)
+        return ObjectFIFOReleaseOp(
+            IntegerAttr.from_int_and_width(port.get_int(), 32), size, object_fifo
+        )
 
 
 @irdl_op_definition
