@@ -6,6 +6,11 @@ from xdsl.ir import Dialect
 def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
     """Returns all available dialects."""
 
+    def get_aie():
+        from xdsl_aie.dialects.aie import AIE
+
+        return AIE
+
     def get_arith():
         from xdsl.dialects.arith import Arith
 
@@ -47,6 +52,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return Test
 
     return {
+        "aie": get_aie,
         "arith": get_arith,
         "builtin": get_builtin,
         "func": get_func,
