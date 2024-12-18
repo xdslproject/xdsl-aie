@@ -7,10 +7,10 @@ of the original dialect can be found here https://xilinx.github.io/mlir-aie/AIED
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-from enum import auto
+from collections.abc import Iterable, Sequence
 from typing import Generic
 
+from typing_extensions import Self
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     I32,
@@ -52,7 +52,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
-    opt_region_def,
+    prop_def,
     region_def,
     result_def,
     successor_def,
@@ -64,10 +64,10 @@ from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
     IsTerminator,
-    NoTerminator,
     SingleBlockImplicitTerminator,
     SymbolOpInterface,
     SymbolTable,
+    ensure_terminator,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -75,13 +75,29 @@ from xdsl.utils.hints import isa
 CASCADE_SIZE = 384
 
 
-class AIEDeviceEnum(StrEnum):
-    xcvc1902 = auto()
+class IntStrEnum(StrEnum):
+    @classmethod
+    def get_sequence(cls) -> Sequence[Self]:
+        return tuple(x for x in cls)
+
+    @classmethod
+    def from_int(cls, value: int) -> Self:
+        return cls.get_sequence()[value - 1]
+
+    def get_int(self) -> int:
+        return self.get_sequence().index(self) + 1
 
 
-@irdl_attr_definition
-class AIEDeviceAttr(EnumAttribute[AIEDeviceEnum]):
-    name = "aie.device_attr"
+class AIEDeviceEnum(IntStrEnum):
+    xcvc1902 = "xcvc1902"
+    xcve2302 = "xcve2302"
+    xcve2802 = "xcve2802"
+    npu1 = "npu1"
+    npu1_1col = "npu1_1col"
+    npu1_2col = "npu1_2col"
+    npu1_3col = "npu1_3col"
+    npu1_4col = "npu1_4col"
+    npu2 = "npu2"
 
 
 class ObjectFifoPortEnum(StrEnum):
@@ -616,34 +632,50 @@ class DebugOp(IRDLOperation):
 
 
 @irdl_op_definition
+class EndOp(IRDLOperation):
+    name = "aie.end"
+
+    def __init__(self):
+        super().__init__()
+
+    traits = traits_def(IsTerminator())
+
+    assembly_format = "attr-dict"
+
+
+@irdl_op_definition
 class DeviceOp(IRDLOperation):
     name = "aie.device"
 
-    region = opt_region_def()
+    region = region_def("single_block")
 
-    device = attr_def(AIEDeviceAttr)
-    traits = traits_def(SymbolTable(), NoTerminator(), HasParent(ModuleOp))
+    device = prop_def(IntegerAttr[IntegerType])
+    traits = traits_def(
+        SymbolTable(), SingleBlockImplicitTerminator(EndOp), HasParent(ModuleOp)
+    )
 
-    def __init__(self, device: AIEDeviceAttr, region: Region):
-        super().__init__(attributes={"device": device}, regions=[region])
+    def __init__(self, device: IntegerAttr[IntegerType], region: Region):
+        super().__init__(properties={"device": device}, regions=[region])
 
     def print(self, printer: Printer):
         printer.print("(")
-        device_str = "xcvc1902" if self.device.data == AIEDeviceEnum.xcvc1902 else ""
-        printer.print(device_str)
+        printer.print(AIEDeviceEnum.from_int(self.device.value.data).value)
         printer.print(") ")
-        if self.region is not None:
-            printer.print_region(self.region)
+        printer.print_region(self.region, print_block_terminators=False)
 
     @classmethod
     def parse(cls, parser: Parser) -> DeviceOp:
         parser.parse_characters("(")
-
-        device = AIEDeviceAttr(AIEDeviceAttr.parse_parameter(parser))
+        device = parser.parse_str_enum(AIEDeviceEnum)
         parser.parse_characters(")")
         region = parser.parse_region()
 
-        return DeviceOp(device, region)
+        device_op = cls(IntegerAttr(device.get_int(), 32), region)
+
+        for trait in device_op.get_traits_of_type(SingleBlockImplicitTerminator):
+            ensure_terminator(device_op, trait)
+
+        return device_op
 
 
 @irdl_op_definition
@@ -1162,18 +1194,6 @@ class PLIOOp(IRDLOperation):
 
     def __init__(self, col: IntegerAttr[IntegerType]):
         super().__init__(attributes={"col": col}, result_types=[IndexType()])
-
-
-@irdl_op_definition
-class EndOp(IRDLOperation):
-    name = "aie.end"
-
-    def __init__(self):
-        super().__init__()
-
-    traits = traits_def(IsTerminator())
-
-    assembly_format = "attr-dict"
 
 
 @irdl_op_definition
