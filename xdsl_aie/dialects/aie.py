@@ -56,6 +56,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    opt_prop_def,
     prop_def,
     region_def,
     result_def,
@@ -440,11 +441,19 @@ class ConnectOp(IRDLOperation):
 @irdl_op_definition
 class CoreOp(IRDLOperation):
     name = "aie.core"
-    stackSize = opt_attr_def(IntegerType)
-    tile = operand_def(IndexType())
+
+    tile = operand_def(IndexType)
+
+    result = result_def(IndexType)
+
+    stack_size = opt_prop_def(IntegerAttr[IntegerType])
+
+    link_with = opt_prop_def(StringAttr)
+    elf_file = opt_prop_def(StringAttr)
+
+    dynamic_objfifo_lowering = opt_prop_def(BoolAttr)
+
     region = region_def()
-    link_with = opt_attr_def(StringAttr)
-    result = result_def(IndexType())
 
     def __init__(
         self,
@@ -453,8 +462,10 @@ class CoreOp(IRDLOperation):
         region: Region,
         link_with: StringAttr | None = None,
     ):
+        if stackSize is None:
+            stackSize = IntegerAttr.from_int_and_width(1024, 32)
         super().__init__(
-            attributes={"stackSize": stackSize, "link_with": link_with},
+            properties={"stack_size": stackSize, "link_with": link_with},
             operands=[tile],
             regions=[region],
             result_types=[IndexType()],
