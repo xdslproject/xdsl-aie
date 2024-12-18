@@ -8,8 +8,9 @@ of the original dialect can be found here https://xilinx.github.io/mlir-aie/AIED
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from typing import Generic, Self
+from typing import Generic
 
+from typing_extensions import Self
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     I32,
