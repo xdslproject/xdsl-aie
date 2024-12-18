@@ -4,25 +4,53 @@
 // RUN: AIE_GENERIC_ROUNDTRIP
 
 aie.device(npu1) {
-%1 = aie.tile(0, 1)
-%2 = aie.tile(0, 2)
-aie.objectfifo @of1 (%1, { %2 }, 4 : i32) : !aie.objectfifo<memref<16xi32>>
-}
 
 
 // CHECK:      module {
 // CHECK-NEXT:   aie.device(npu1) {
-// CHECK-NEXT:     %{{.*}} = aie.tile(0, 1)
-// CHECK-NEXT:     %{{.*}} = aie.tile(0, 2)
-// CHECK-NEXT:     aie.objectfifo @of1(%{{.*}}, {%{{.*}}}, 4 : i32) : !aie.objectfifo<memref<16xi32>>
-// CHECK-NEXT:   }
-// CHECK-NEXT: }
 
 // CHECK-GENERIC:      "builtin.module"() ({
 // CHECK-GENERIC-NEXT:   "aie.device"() <{{{["]?}}device{{["]?}} = 4 : i32}> ({
+
+
+%1 = aie.tile(0, 1)
+%2 = aie.tile(0, 2)
+
+
+// CHECK-NEXT:     %{{.*}} = aie.tile(0, 1)
+// CHECK-NEXT:     %{{.*}} = aie.tile(0, 2)
+
+
 // CHECK-GENERIC-NEXT:     %{{.*}} = "aie.tile"() <{{{["]?}}col{{["]?}} = 0 : i32, {{["]?}}row{{["]?}} = 1 : i32}> : () -> index
 // CHECK-GENERIC-NEXT:     %{{.*}} = "aie.tile"() <{{{["]?}}col{{["]?}} = 0 : i32, {{["]?}}row{{["]?}} = 2 : i32}> : () -> index
+
+
+aie.objectfifo @of1 (%1, { %2 }, 4 : i32) : !aie.objectfifo<memref<16xi32>>
+
+// CHECK-NEXT:     aie.objectfifo @of1(%{{.*}}, {%{{.*}}}, 4 : i32) : !aie.objectfifo<memref<16xi32>>
+  
 // CHECK-GENERIC-NEXT:     "aie.objectfifo"(%0, %1) <{{{["]?}}dimensionsFromStreamPerConsumer{{["]?}} = #aie<bd_dim_layout_array_array[[]]>, {{["]?}}dimensionsToStream{{["]?}} = #aie<bd_dim_layout_array[]>, {{["]?}}disable_synchronization{{["]?}} = false, {{["]?}}elemNumber{{["]?}} = 4 : i32, {{["]?}}elemType{{["]?}} = !aie.objectfifo<memref<16xi32>>, {{["]?}}plio{{["]?}} = false, {{["]?}}sym_name{{["]?}} = "of1", {{["]?}}via_DMA{{["]?}} = false}> : (index, index) -> ()
-// CHECK-GENERIC-NEXT:     "aie.end"() : () -> ()
-// CHECK-GENERIC-NEXT:   }) : () -> ()
-// CHECK-GENERIC-NEXT: }) : () -> ()
+
+
+%3 = aie.core(%2) {
+
+// CHECK-NEXT: %{{.*}} = aie.core(%{{.*}}) {
+// CHECK-GENERIC-NEXT: %{{.*}} = "aie.core"(%{{.*}}) <{{{["]?}}stack_size{{["]?}} = 1024 : i32}> ({
+
+%4 = aie.objectfifo.acquire @of1(Consume, 1) : !aie.objectfifosubview<memref<16xi32>>
+
+// CHECK-NEXT: %{{.*}} = aie.objectfifo.acquire @of1(Consume, 1) : !aie.objectfifosubview<memref<16xi32>>
+// CHECK-GENERIC-NEXT: %{{.*}} = "aie.objectfifo.acquire"() <{{{["]?}}objFifo_name{{["]?}} = @of1, {{["]?}}port{{["]?}} = 1 : i32, {{["]?}}size{{["]?}} = 1 : i32}> : () -> !aie.objectfifosubview<memref<16xi32>>
+
+aie.objectfifo.release @of1(Consume, 1)
+
+// CHECK-NEXT: aie.objectfifo.release @of1(Consume, 1)
+// CHECK-GENERIC-NEXT: "aie.objectfifo.release"() <{{{["]?}}objFifo_name{{["]?}} = @of1, {{["]?}}port{{["]?}} = 1 : i32, {{["]?}}size{{["]?}} = 1 : i32}> : () -> ()
+
+aie.end
+
+// CHECK-NEXT: aie.end
+// CHECK-GENERIC-NEXT: "aie.end"() : () -> ()
+
+} // core
+} // device
