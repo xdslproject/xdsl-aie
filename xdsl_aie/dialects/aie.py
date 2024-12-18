@@ -461,7 +461,7 @@ class CoreOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        printer.print(" (")
+        printer.print("(")
         printer.print_operand(self.tile)
         printer.print(") ")
         printer.print_region(self.region)
