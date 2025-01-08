@@ -16,6 +16,7 @@ from xdsl.ir import Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    ParsePropInAttrDict,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -54,7 +55,6 @@ class DmaMemcpyNdOp(IRDLOperation):
 
     x = prop_def(IntegerAttr[IntegerType])
     y = prop_def(IntegerAttr[IntegerType])
-
 
     def __init__(
         self,
@@ -167,6 +167,21 @@ class DmaMemcpyNdOp(IRDLOperation):
 
 
 @irdl_op_definition
+class DmaWaitOp(IRDLOperation):
+    name = "aiex.npu.dma_wait"
+
+    symbol = prop_def(SymbolRefAttr)
+
+    irdl_options = [ParsePropInAttrDict()]
+
+    assembly_format = "attr-dict"
+
+    def __init__(self, symbol: str | StringAttr | SymbolRefAttr):
+        if not isinstance(symbol, SymbolRefAttr):
+            symbol = SymbolRefAttr(symbol)
+
+
+@irdl_op_definition
 class RuntimeSequenceOp(IRDLOperation):
     name = "aiex.runtime_sequence"
 
@@ -214,6 +229,7 @@ AIEX = Dialect(
     "aiex",
     [
         DmaMemcpyNdOp,
+        DmaWaitOp,
         RuntimeSequenceOp,
     ],
     [],
