@@ -1,5 +1,4 @@
-from typing import Self
-
+from typing_extensions import Self
 from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import Dialect, Region
 from xdsl.irdl import (
