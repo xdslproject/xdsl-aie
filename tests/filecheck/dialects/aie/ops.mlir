@@ -42,6 +42,11 @@ aie.objectfifo @of1 (%1, { %2 }, 4 : i32) : !aie.objectfifo<memref<16xi32>>
 // CHECK-NEXT: %{{.*}} = aie.objectfifo.acquire @of1(Consume, 1) : !aie.objectfifosubview<memref<16xi32>>
 // CHECK-GENERIC-NEXT: %{{.*}} = "aie.objectfifo.acquire"() <{{{["]?}}objFifo_name{{["]?}} = @of1, {{["]?}}port{{["]?}} = 1 : i32, {{["]?}}size{{["]?}} = 1 : i32}> : () -> !aie.objectfifosubview<memref<16xi32>>
 
+%5 = aie.objectfifo.subview.access %4[0] : !aie.objectfifosubview<memref<16xi32>> -> memref<16xi32>
+
+// CHECK-NEXT: %{{.*}} = aie.objectfifo.subview.access %{{.*}}[0] : !aie.objectfifosubview<memref<16xi32>> -> memref<16xi32>
+// CHECK-GENERIC-NEXT: %{{.*}} = "aie.objectfifo.subview.access"(%3) <{{{["]?}}index{{["]?}} = 0 : i32}> : (!aie.objectfifosubview<memref<16xi32>>) -> memref<16xi32>
+
 aie.objectfifo.release @of1(Consume, 1)
 
 // CHECK-NEXT: aie.objectfifo.release @of1(Consume, 1)

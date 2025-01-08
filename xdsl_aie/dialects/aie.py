@@ -1074,7 +1074,7 @@ class ObjectFifoRegisterExternalBuffersOp(IRDLOperation):
 class ObjectFIFOSubviewAccessOp(IRDLOperation):
     name = "aie.objectfifo.subview.access"
 
-    index = attr_def(IntegerAttr[IntegerType])
+    index = prop_def(IntegerAttr[IntegerType])
     subview = operand_def(ObjectFIFOSubview[Attribute])
     output = result_def(builtin.MemRefType)
 
@@ -1086,7 +1086,7 @@ class ObjectFIFOSubviewAccessOp(IRDLOperation):
             subview.result.type.buffer.element_type, subview.result.type.buffer.shape
         )
         super().__init__(
-            attributes={"index": index}, operands=[subview], result_types=[result_type]
+            properties={"index": index}, operands=[subview], result_types=[result_type]
         )
 
     def print(self, printer: Printer):
