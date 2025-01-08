@@ -16,6 +16,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return AIE
 
+    def get_aiex():
+        from xdsl_aie.dialects.aiex import AIEX
+
+        return AIEX
+
     def get_arith():
         from xdsl.dialects.arith import Arith
 
@@ -94,6 +99,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
     return {
         "affine": get_affine,
         "aie": get_aie,
+        "aiex": get_aiex,
         "arith": get_arith,
         "bufferization": get_bufferization,
         "builtin": get_builtin,
