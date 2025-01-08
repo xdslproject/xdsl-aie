@@ -72,40 +72,40 @@ aie.device(npu2) {
 // CHECK-NEXT: }
 
 // CHECK-GENERIC:      "builtin.module"() ({
-// CHECK-GENERIC-NEXT:   "aie.device"() <{{{["]?}}device{{["]?}} = 1 : i32}> ({
-// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{{{["]?}}value{{["]?}} = 1 : i32}> : () -> i32
+// CHECK-GENERIC-NEXT:   "aie.device"() <{device = 1 : i32}> ({
+// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{value = 1 : i32}> : () -> i32
 // CHECK-GENERIC-NEXT:     "aie.end"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
-// CHECK-GENERIC-NEXT:   "aie.device"() <{{{["]?}}device{{["]?}} = 2 : i32}> ({
-// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{{{["]?}}value{{["]?}} = 1 : i32}> : () -> i32
+// CHECK-GENERIC-NEXT:   "aie.device"() <{device = 2 : i32}> ({
+// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{value = 1 : i32}> : () -> i32
 // CHECK-GENERIC-NEXT:     "aie.end"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
-// CHECK-GENERIC-NEXT:   "aie.device"() <{{{["]?}}device{{["]?}} = 3 : i32}> ({
-// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{{{["]?}}value{{["]?}} = 1 : i32}> : () -> i32
+// CHECK-GENERIC-NEXT:   "aie.device"() <{device = 3 : i32}> ({
+// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{value = 1 : i32}> : () -> i32
 // CHECK-GENERIC-NEXT:     "aie.end"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
-// CHECK-GENERIC-NEXT:   "aie.device"() <{{{["]?}}device{{["]?}} = 4 : i32}> ({
-// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{{{["]?}}value{{["]?}} = 1 : i32}> : () -> i32
+// CHECK-GENERIC-NEXT:   "aie.device"() <{device = 4 : i32}> ({
+// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{value = 1 : i32}> : () -> i32
 // CHECK-GENERIC-NEXT:     "aie.end"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
-// CHECK-GENERIC-NEXT:   "aie.device"() <{{{["]?}}device{{["]?}} = 5 : i32}> ({
-// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{{{["]?}}value{{["]?}} = 1 : i32}> : () -> i32
+// CHECK-GENERIC-NEXT:   "aie.device"() <{device = 5 : i32}> ({
+// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{value = 1 : i32}> : () -> i32
 // CHECK-GENERIC-NEXT:     "aie.end"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
-// CHECK-GENERIC-NEXT:   "aie.device"() <{{{["]?}}device{{["]?}} = 6 : i32}> ({
-// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{{{["]?}}value{{["]?}} = 1 : i32}> : () -> i32
+// CHECK-GENERIC-NEXT:   "aie.device"() <{device = 6 : i32}> ({
+// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{value = 1 : i32}> : () -> i32
 // CHECK-GENERIC-NEXT:     "aie.end"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
-// CHECK-GENERIC-NEXT:   "aie.device"() <{{{["]?}}device{{["]?}} = 7 : i32}> ({
-// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{{{["]?}}value{{["]?}} = 1 : i32}> : () -> i32
+// CHECK-GENERIC-NEXT:   "aie.device"() <{device = 7 : i32}> ({
+// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{value = 1 : i32}> : () -> i32
 // CHECK-GENERIC-NEXT:     "aie.end"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
-// CHECK-GENERIC-NEXT:   "aie.device"() <{{{["]?}}device{{["]?}} = 8 : i32}> ({
-// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{{{["]?}}value{{["]?}} = 1 : i32}> : () -> i32
+// CHECK-GENERIC-NEXT:   "aie.device"() <{device = 8 : i32}> ({
+// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{value = 1 : i32}> : () -> i32
 // CHECK-GENERIC-NEXT:     "aie.end"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
-// CHECK-GENERIC-NEXT:   "aie.device"() <{{{["]?}}device{{["]?}} = 9 : i32}> ({
-// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{{{["]?}}value{{["]?}} = 1 : i32}> : () -> i32
+// CHECK-GENERIC-NEXT:   "aie.device"() <{device = 9 : i32}> ({
+// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{value = 1 : i32}> : () -> i32
 // CHECK-GENERIC-NEXT:     "aie.end"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
