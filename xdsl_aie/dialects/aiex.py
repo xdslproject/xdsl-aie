@@ -110,17 +110,23 @@ class DmaMemcpyNdOp(IRDLOperation):
     def print(self, printer: Printer):
         printer.print_string(f"({self.x.value.data}, {self.y.value.data}, ")
         printer.print_operand(self.memref)
-        for static_operands in (self.static_offsets, self.static_sizes, self.static_strides):
-            values = ', '.join([str(x) for x in static_operands.get_values()])
+        for static_operands in (
+            self.static_offsets,
+            self.static_sizes,
+            self.static_strides,
+        ):
+            values = ", ".join([str(x) for x in static_operands.get_values()])
             printer.print_string(f"[{values}]")
         for other_operands in (self.offsets, self.sizes, self.strides):
             if other_operands:
                 printer.print_string(", ")
                 printer.print_operands(other_operands)
         printer.print_string(") ")
-        printer.print_attr_dict({"id": self.id, "issue_token": self.issue_token, "metadata": self.metadata})
+        printer.print_attr_dict(
+            {"id": self.id, "issue_token": self.issue_token, "metadata": self.metadata}
+        )
         printer.print_string(" : ")
-        printer.print_attribute(self.memref.type) 
+        printer.print_attribute(self.memref.type)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
