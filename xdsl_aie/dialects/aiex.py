@@ -180,6 +180,8 @@ class DmaWaitOp(IRDLOperation):
         if not isinstance(symbol, SymbolRefAttr):
             symbol = SymbolRefAttr(symbol)
 
+        super().__init__(properties={"symbol": symbol})
+
 
 @irdl_op_definition
 class RuntimeSequenceOp(IRDLOperation):
