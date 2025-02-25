@@ -8,7 +8,7 @@ of the original dialect can be found here https://xilinx.github.io/mlir-aie/AIED
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from typing import Generic
+from typing import Generic, cast
 
 from typing_extensions import Self
 from xdsl.dialects import builtin
@@ -1302,6 +1302,102 @@ class ObjectFIFOReleaseOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ObjectFifoLinkOp(IRDLOperation):
+    name = "aie.objectfifo.link"
+
+    fifoIns = prop_def(ArrayAttr[SymbolRefAttr])
+    fifoOuts = prop_def(ArrayAttr[SymbolRefAttr])
+    src_offsets = prop_def(ArrayAttr[IntegerAttr[IntegerType]])
+    dst_offsets = prop_def(ArrayAttr[IntegerAttr[IntegerType]])
+
+    def __init__(
+        self,
+        fifoIns: ArrayAttr[SymbolRefAttr] | Sequence[SymbolRefAttr] | Sequence[str],
+        fifoOuts: ArrayAttr[SymbolRefAttr] | Sequence[SymbolRefAttr] | Sequence[str],
+        src_offsets: ArrayAttr[IntegerAttr[IntegerType]] | Sequence[int],
+        dst_offsets: ArrayAttr[IntegerAttr[IntegerType]] | Sequence[int],
+    ) -> None:
+        # fifoIns
+        if isa(fifoIns, Sequence[str]):
+            fifoIns = ArrayAttr([SymbolRefAttr(val) for val in fifoIns])
+        elif isa(fifoIns, Sequence[SymbolRefAttr]):
+            fifoIns = ArrayAttr(fifoIns)
+        fifoIns = cast(ArrayAttr[SymbolRefAttr], fifoIns)
+
+        # fifoOuts
+        if isa(fifoOuts, Sequence[str]):
+            fifoOuts = ArrayAttr([SymbolRefAttr(val) for val in fifoOuts])
+        elif isa(fifoOuts, Sequence[SymbolRefAttr]):
+            fifoOuts = ArrayAttr(fifoOuts)
+        fifoOuts = cast(ArrayAttr[SymbolRefAttr], fifoOuts)
+
+        # src_offsets
+        if isa(src_offsets, Sequence[int]):
+            src_offsets = ArrayAttr(
+                [IntegerAttr.from_int_and_width(val, 64) for val in src_offsets]
+            )
+        src_offsets = cast(ArrayAttr[IntegerAttr[IntegerType]], src_offsets)
+
+        # dst_offsets
+        if isa(dst_offsets, Sequence[int]):
+            dst_offsets = ArrayAttr(
+                [IntegerAttr.from_int_and_width(val, 64) for val in dst_offsets]
+            )
+        dst_offsets = cast(ArrayAttr[IntegerAttr[IntegerType]], dst_offsets)
+
+        super().__init__(
+            properties={
+                "dst_offsets": dst_offsets,
+                "fifoIns": fifoIns,
+                "fifoOuts": fifoOuts,
+                "src_offsets": src_offsets,
+            },
+        )
+
+    def print(self, printer: Printer):
+        printer.print(" [")
+        printer.print_list(self.fifoIns.data, printer.print_attribute)
+        printer.print("] -> [")
+        printer.print_list(self.fifoOuts.data, printer.print_attribute)
+        printer.print("]([")
+        printer.print_list([str(x.value.data) for x in self.src_offsets], printer.print)
+        printer.print("] [")
+        printer.print_list([str(x.value.data) for x in self.dst_offsets], printer.print)
+        printer.print("])")
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ObjectFifoLinkOp:
+        fifoIns = [
+            x.data
+            for x in parser.parse_comma_separated_list(
+                Parser.Delimiter.SQUARE, parser.parse_symbol_name
+            )
+        ]
+        parser.parse_punctuation("->")
+        fifoOuts = [
+            x.data
+            for x in parser.parse_comma_separated_list(
+                Parser.Delimiter.SQUARE, parser.parse_symbol_name
+            )
+        ]
+        parser.parse_characters("(")
+        src_offsets = cast(
+            list[int],
+            parser.parse_comma_separated_list(
+                Parser.Delimiter.SQUARE, parser.parse_number
+            ),
+        )
+        dst_offsets = cast(
+            list[int],
+            parser.parse_comma_separated_list(
+                Parser.Delimiter.SQUARE, parser.parse_number
+            ),
+        )
+        parser.parse_characters(")")
+        return ObjectFifoLinkOp(fifoIns, fifoOuts, src_offsets, dst_offsets)
+
+
+@irdl_op_definition
 class PLIOOp(IRDLOperation):
     name = "aie.plio"
 
@@ -1627,6 +1723,7 @@ AIE = Dialect(
         ObjectFIFOSubviewAccessOp,
         ObjectFifoOp,
         ObjectFIFOReleaseOp,
+        ObjectFifoLinkOp,
         PLIOOp,
         PacketDestOp,
         PacketFlowOp,
