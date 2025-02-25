@@ -1145,28 +1145,65 @@ class ObjectFifoOp(IRDLOperation):
         self,
         producerTile: Operation | SSAValue,
         consumerTiles: list[Operation | SSAValue],
+        dimensionsToStream: BDDimLayoutArrayAttr,
+        dimensionsFromStreamPerConsumer: BDDimLayoutArrayArrayAttr,
+        disable_synchronization: bool | IntegerAttr[IntegerType],
+        elemNumber: int | IntegerAttr[IntegerType],
+        elemType: Attribute,
+        plio: bool | BoolAttr,
+        sym_name: str | StringAttr,
+        via_DMA: bool | BoolAttr,
+    ):
+        if isinstance(disable_synchronization, bool):
+            disable_synchronization = IntegerAttr.from_int_and_width(
+                int(disable_synchronization), 1
+            )
+        if isinstance(elemNumber, int):
+            elemNumber = IntegerAttr.from_int_and_width(elemNumber, 32)
+        if isinstance(plio, bool):
+            plio = IntegerAttr.from_int_and_width(int(plio), 1)
+        if isinstance(sym_name, str):
+            sym_name = StringAttr(sym_name)
+        if isinstance(via_DMA, bool):
+            via_DMA = IntegerAttr.from_int_and_width(int(via_DMA), 1)
+
+        super().__init__(
+            properties={
+                "dimensionsFromStreamPerConsumer": dimensionsFromStreamPerConsumer,
+                "dimensionsToStream": dimensionsToStream,
+                "disable_synchronization": disable_synchronization,
+                "elemNumber": elemNumber,
+                "elemType": elemType,
+                "plio": plio,
+                "sym_name": sym_name,
+                "via_DMA": via_DMA,
+            },
+            operands=[producerTile, *consumerTiles],
+        )
+
+    @staticmethod
+    def from_referenced_type(
+        producerTile: Operation | SSAValue,
+        consumerTiles: list[Operation | SSAValue],
         name: str,
         elemNumber: IntegerAttr[IntegerType],
         referenced_type: Attribute,
         shape: Iterable[int | IntAttr],
-    ):
+    ) -> ObjectFifoOp:
         elemType = ObjectFIFO[Attribute].from_element_type_and_shape(
             referenced_type, shape
         )
-        super().__init__(
-            properties={
-                "dimensionsFromStreamPerConsumer": BDDimLayoutArrayArrayAttr(
-                    BDDimLayoutArrayArray(tuple(tuple()))
-                ),
-                "dimensionsToStream": BDDimLayoutArrayAttr(BDDimLayoutArray(tuple())),
-                "disable_synchronization": IntegerAttr.from_int_and_width(0, 1),
-                "elemNumber": elemNumber,
-                "elemType": elemType,
-                "plio": IntegerAttr.from_int_and_width(0, 1),
-                "sym_name": StringAttr(name),
-                "via_DMA": IntegerAttr.from_int_and_width(0, 1),
-            },
-            operands=[producerTile, *consumerTiles],
+        return ObjectFifoOp(
+            producerTile,
+            consumerTiles,
+            BDDimLayoutArrayAttr(BDDimLayoutArray(tuple())),
+            BDDimLayoutArrayArrayAttr(BDDimLayoutArrayArray(tuple(tuple()))),
+            False,
+            elemNumber,
+            elemType,
+            False,
+            name,
+            False,
         )
 
     def print(self, printer: Printer):
@@ -1211,7 +1248,7 @@ class ObjectFifoOp(IRDLOperation):
         shape = objectfifo_type.shape
         referenced_type = objectfifo_type.element_type
 
-        object_fifo = ObjectFifoOp(
+        object_fifo = ObjectFifoOp.from_referenced_type(
             producerTile, consumerTiles, name, elemNumber, referenced_type, shape
         )
 
