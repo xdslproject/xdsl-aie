@@ -30,13 +30,18 @@ aie.device(npu1) {
 
 aie.objectfifo @of1 (%1, { %2 }, 4 : i32) : !aie.objectfifo<memref<16xi32>>
 
-// CHECK-NEXT:     aie.objectfifo @of1(%{{.*}}, {%{{.*}}}, 4 : i32) : !aie.objectfifo<memref<16xi32>>
-// CHECK-GENERIC-NEXT:     "aie.objectfifo"(%{{.*}}, %{{.*}}) <{dimensionsFromStreamPerConsumer = #aie<bd_dim_layout_array_array[[]]>, dimensionsToStream = #aie<bd_dim_layout_array[]>, disable_synchronization = false, elemNumber = 4 : i32, elemType = !aie.objectfifo<memref<16xi32>>, plio = false, sym_name = "of1", via_DMA = false}> : (index, index) -> ()
+// CHECK-NEXT: aie.objectfifo @of1(%{{.*}}, {%{{.*}}}, 4 : i32) : !aie.objectfifo<memref<16xi32>>
+// CHECK-GENERIC-NEXT: "aie.objectfifo"(%{{.*}}, %{{.*}}) <{dimensionsFromStreamPerConsumer = #aie<bd_dim_layout_array_array[[]]>, dimensionsToStream = #aie<bd_dim_layout_array[]>, disable_synchronization = false, elemNumber = 4 : i32, elemType = !aie.objectfifo<memref<16xi32>>, plio = false, sym_name = "of1", via_DMA = false}> : (index, index) -> ()
 
 aie.objectfifo @of2 (%2, { %21 }, 4 : i32) : !aie.objectfifo<memref<16xi32>>
 
-// CHECK-NEXT:     aie.objectfifo @of2(%{{.*}}, {%{{.*}}}, 4 : i32) : !aie.objectfifo<memref<16xi32>>
-// CHECK-GENERIC-NEXT:     "aie.objectfifo"(%{{.*}}, %{{.*}}) <{dimensionsFromStreamPerConsumer = #aie<bd_dim_layout_array_array[[]]>, dimensionsToStream = #aie<bd_dim_layout_array[]>, disable_synchronization = false, elemNumber = 4 : i32, elemType = !aie.objectfifo<memref<16xi32>>, plio = false, sym_name = "of2", via_DMA = false}> : (index, index) -> ()
+// CHECK-NEXT: aie.objectfifo @of2(%{{.*}}, {%{{.*}}}, 4 : i32) : !aie.objectfifo<memref<16xi32>>
+// CHECK-GENERIC-NEXT: "aie.objectfifo"(%{{.*}}, %{{.*}}) <{dimensionsFromStreamPerConsumer = #aie<bd_dim_layout_array_array[[]]>, dimensionsToStream = #aie<bd_dim_layout_array[]>, disable_synchronization = false, elemNumber = 4 : i32, elemType = !aie.objectfifo<memref<16xi32>>, plio = false, sym_name = "of2", via_DMA = false}> : (index, index) -> ()
+
+aie.objectfifo @of3 (%1 dimensionsToStream [<size = 8, stride = 128>, <size = 8, stride = 4>, <size = 4, stride = 32>, <size = 4, stride = 1>], {%2}, 4 : i32) : !aie.objectfifo<memref<32x32xi16>>
+
+// CHECK-NEXT: aie.objectfifo @of3(%{{.*}} dimensionsToStream [<size = 8, stride = 128>, <size = 8, stride = 4>, <size = 4, stride = 32>, <size = 4, stride = 1>], {%{{.*}}}, 4 : i32) : !aie.objectfifo<memref<32x32xi16>>
+// CHECK-GENERIC-NEXT: "aie.objectfifo"(%{{.*}}, %{{.*}}) <{dimensionsFromStreamPerConsumer = #aie<bd_dim_layout_array_array[[]]>, dimensionsToStream = #aie<bd_dim_layout_array[<size = 8, stride = 128>, <size = 8, stride = 4>, <size = 4, stride = 32>, <size = 4, stride = 1>]>, disable_synchronization = false, elemNumber = 4 : i32, elemType = !aie.objectfifo<memref<32x32xi16>>, plio = false, sym_name = "of3", via_DMA = false}> : (index, index) -> ()
 
 aie.objectfifo.link [@of1] -> [@of2] ([] [])
 

@@ -201,7 +201,9 @@ class ObjectFIFOSubview(Generic[AttributeInvT], ParametrizedAttribute, TypeAttri
         return ObjectFIFOSubview([builtin.MemRefType(element_type, shape)])
 
 
-class BDDimLayout(tuple[int]): ...
+class BDDimLayout(tuple[int, int]):
+    def __str__(self):
+        return f"<size = {self[0]}, stride = {self[1]}>"
 
 
 class BDDimLayoutArray(tuple[BDDimLayout, ...]): ...
@@ -216,12 +218,25 @@ class BDDimLayoutArrayAttr(Data[BDDimLayoutArray], OpaqueSyntaxAttribute):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> BDDimLayoutArray:
-        parser.parse_punctuation("[")
-        parser.parse_punctuation("]")
-        return BDDimLayoutArray(tuple())
+        def parse_bd_dim() -> BDDimLayout:
+            parser.parse_punctuation("<")
+            parser.parse_characters("size")
+            parser.parse_punctuation("=")
+            size = cast(int, parser.parse_number())
+            parser.parse_punctuation(",")
+            parser.parse_characters("stride")
+            parser.parse_punctuation("=")
+            stride = cast(int, parser.parse_number())
+            parser.parse_punctuation(">")
+
+            return BDDimLayout((size, stride))
+
+        return BDDimLayoutArray(
+            parser.parse_comma_separated_list(parser.Delimiter.SQUARE, parse_bd_dim)
+        )
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(f"{list(self.data)}")
+        printer.print(f"[{', '.join([str(x) for x in self.data])}]")
 
 
 @irdl_attr_definition
@@ -1144,15 +1159,19 @@ class ObjectFifoOp(IRDLOperation):
     def __init__(
         self,
         producerTile: Operation | SSAValue,
-        consumerTiles: list[Operation | SSAValue],
-        dimensionsToStream: BDDimLayoutArrayAttr,
-        dimensionsFromStreamPerConsumer: BDDimLayoutArrayArrayAttr,
-        disable_synchronization: bool | IntegerAttr[IntegerType],
+        consumerTiles: Sequence[Operation | SSAValue],
         elemNumber: int | IntegerAttr[IntegerType],
         elemType: Attribute,
-        plio: bool | BoolAttr,
         sym_name: str | StringAttr,
-        via_DMA: bool | BoolAttr,
+        dimensionsToStream: BDDimLayoutArrayAttr = BDDimLayoutArrayAttr(
+            BDDimLayoutArray(tuple())
+        ),
+        dimensionsFromStreamPerConsumer: BDDimLayoutArrayArrayAttr = BDDimLayoutArrayArrayAttr(
+            BDDimLayoutArrayArray(tuple(tuple()))
+        ),
+        disable_synchronization: bool | IntegerAttr[IntegerType] = False,
+        plio: bool | BoolAttr = False,
+        via_DMA: bool | BoolAttr = False,
     ):
         if isinstance(disable_synchronization, bool):
             disable_synchronization = IntegerAttr.from_int_and_width(
@@ -1196,22 +1215,34 @@ class ObjectFifoOp(IRDLOperation):
         return ObjectFifoOp(
             producerTile,
             consumerTiles,
+            elemNumber,
+            elemType,
+            name,
             BDDimLayoutArrayAttr(BDDimLayoutArray(tuple())),
             BDDimLayoutArrayArrayAttr(BDDimLayoutArrayArray(tuple(tuple()))),
             False,
-            elemNumber,
-            elemType,
             False,
-            name,
             False,
         )
 
     def print(self, printer: Printer):
-        printer.print(" @", self.sym_name.data, "(", self.producerTile, ", {")
-        for i in range(len(self.consumerTiles) - 1):
-            printer.print(self.consumerTiles[i], ", ")
+        printer.print(" @", self.sym_name.data, "(")
 
-        printer.print(self.consumerTiles[-1], "}, ")
+        # producerTile
+        printer.print(self.producerTile)
+
+        # optional dimensionsToStream
+        if len(self.dimensionsToStream.data):
+            printer.print(" dimensionsToStream ")
+            self.dimensionsToStream.print_parameter(printer)
+
+        printer.print(", ")
+
+        # consumerTile
+        printer.print("{")
+        printer.print_list(self.consumerTiles, printer.print)
+        printer.print("}, ")
+
         printer.print(self.elemNumber)
 
         printer.print(
@@ -1225,34 +1256,33 @@ class ObjectFifoOp(IRDLOperation):
         name = parser.parse_symbol_name().data
         parser.parse_characters("(")
         producerTile = parser.parse_operand()
-        parser.parse_characters(",")
-        parser.parse_characters("{")
-        consumerTiles: list[Operation | SSAValue] = []
-        consumerTiles.append(parser.parse_operand())
-        while not parser.parse_optional_characters("}"):
+        if parser.parse_optional_characters(",") is None:
+            # optional dimensionsToStream
+            parser.parse_characters("dimensionsToStream")
+            dimensionsToStream = BDDimLayoutArrayAttr(
+                BDDimLayoutArrayAttr.parse_parameter(parser)
+            )
             parser.parse_characters(",")
-            consumerTiles.append(parser.parse_operand())
-
+        else:
+            dimensionsToStream = BDDimLayoutArrayAttr(BDDimLayoutArray(tuple()))
+        consumerTiles = parser.parse_comma_separated_list(
+            parser.Delimiter.BRACES, parser.parse_operand
+        )
         parser.parse_characters(",")
-        elemNumber = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
-        parser.parse_characters(":")
-        parser.parse_type()
+        elemNumber = parser.parse_attribute()
+        assert isa(elemNumber, IntegerAttr[IntegerType])
         parser.parse_characters(")")
         parser.parse_characters(":")
-        parser.parse_characters("!aie.objectfifo")
-        parser.parse_characters("<")
-        objectfifo_type = parser.parse_type()
-        parser.parse_characters(">")
+        elemType = parser.parse_type()
 
-        assert isa(objectfifo_type, MemRefType[Attribute])
-        shape = objectfifo_type.shape
-        referenced_type = objectfifo_type.element_type
-
-        object_fifo = ObjectFifoOp.from_referenced_type(
-            producerTile, consumerTiles, name, elemNumber, referenced_type, shape
+        return ObjectFifoOp(
+            producerTile,
+            consumerTiles,
+            elemNumber,
+            elemType,
+            name,
+            dimensionsToStream=dimensionsToStream,
         )
-
-        return object_fifo
 
 
 @irdl_op_definition
