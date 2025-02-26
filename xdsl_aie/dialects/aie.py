@@ -14,7 +14,6 @@ from typing_extensions import Self
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     I32,
-    AnyIntegerAttr,
     ArrayAttr,
     BoolAttr,
     Float32Type,
@@ -22,7 +21,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
-    MemrefLayoutAttr,
+    MemRefLayoutAttr,
     MemRefType,
     ModuleOp,
     NoneAttr,
@@ -179,7 +178,7 @@ class ObjectFIFO(Generic[AttributeInvT], ParametrizedAttribute, TypeAttribute):
     def from_element_type_and_shape(
         referenced_type: AttributeInvT,
         shape: Iterable[int | IntAttr],
-        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
+        layout: MemRefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> ObjectFIFO[AttributeInvT]:
         return ObjectFIFO(
@@ -285,8 +284,8 @@ class SwitchboxOp(IRDLOperation):
 @irdl_op_definition
 class AMSelOp(IRDLOperation):
     name = "aie.amsel"
-    arbiterID = attr_def(AnyIntegerAttr)
-    msel = attr_def(AnyIntegerAttr)
+    arbiterID = attr_def(IntegerAttr)
+    msel = attr_def(IntegerAttr)
     result = result_def(IndexType())
 
     traits = traits_def(HasParent(SwitchboxOp))
@@ -384,18 +383,18 @@ class ShimMuxOp(IRDLOperation):
 class ConnectOp(IRDLOperation):
     name = "aie.connect"
     sourceBundle = attr_def(WireBundleAttr)
-    sourceChannel = attr_def(AnyIntegerAttr)
+    sourceChannel = attr_def(IntegerAttr)
     destBundle = attr_def(WireBundleAttr)
-    destChannel = attr_def(AnyIntegerAttr)
+    destChannel = attr_def(IntegerAttr)
 
     traits = traits_def(HasParent(SwitchboxOp, ShimMuxOp))
 
     def __init__(
         self,
         sourceBundle: WireBundleAttr,
-        sourceChannel: int | AnyIntegerAttr,
+        sourceChannel: int | IntegerAttr,
         destBundle: WireBundleAttr,
-        destChannel: int | AnyIntegerAttr,
+        destChannel: int | IntegerAttr,
     ):
         if isinstance(sourceChannel, int):
             sourceChannel = IntegerAttr(sourceChannel, IntegerType(8))
