@@ -7,12 +7,12 @@ license = { text = "MIT License" }
 version = "0.0.1"
 
 dependencies = [
-    "xdsl @ git+https://github.com/xdslproject/xdsl.git@3c3b445a97119b8e34fdca5037c7d72efdf21e34",
+    "xdsl @ git+https://github.com/xdslproject/xdsl.git@e9b1efb65d0873ee21442515e78f3a449b01bedb",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "xdsl[dev] @ git+https://github.com/xdslproject/xdsl.git@3c3b445a97119b8e34fdca5037c7d72efdf21e34",
+    "xdsl[dev] @ git+https://github.com/xdslproject/xdsl.git@e9b1efb65d0873ee21442515e78f3a449b01bedb",
 ]
 
 [project.scripts]
