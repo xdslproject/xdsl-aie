@@ -53,13 +53,8 @@ class DmaMemcpyNdOp(IRDLOperation):
     static_sizes = prop_def(DenseArrayBase)
     static_strides = prop_def(DenseArrayBase)
 
-    x = prop_def(IntegerAttr[IntegerType])
-    y = prop_def(IntegerAttr[IntegerType])
-
     def __init__(
         self,
-        x: int | IntegerAttr[IntegerType],
-        y: int | IntegerAttr[IntegerType],
         memref: SSAValue | Operation,
         static_offsets: Sequence[int] | DenseArrayBase,
         static_sizes: Sequence[int] | DenseArrayBase,
@@ -71,10 +66,6 @@ class DmaMemcpyNdOp(IRDLOperation):
         sizes: Sequence[SSAValue | Operation] = [],
         strides: Sequence[SSAValue | Operation] = [],
     ):
-        if isinstance(x, int):
-            x = IntegerAttr(x, i64)
-        if isinstance(y, int):
-            y = IntegerAttr(y, i64)
         if isa(static_offsets, Sequence[int]):
             static_offsets = DenseArrayBase.from_list(i64, static_offsets)
         static_offsets = cast(DenseArrayBase, static_offsets)
@@ -100,15 +91,13 @@ class DmaMemcpyNdOp(IRDLOperation):
                 "static_offsets": static_offsets,
                 "static_sizes": static_sizes,
                 "static_strides": static_strides,
-                "x": x,
-                "y": y,
             },
         )
 
         pass
 
     def print(self, printer: Printer):
-        printer.print_string(f"({self.x.value.data}, {self.y.value.data}, ")
+        printer.print_string("(")
         printer.print_operand(self.memref)
         for static_operands in (
             self.static_offsets,
@@ -131,10 +120,6 @@ class DmaMemcpyNdOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         parser.parse_punctuation("(")
-        x = parser.parse_integer()
-        parser.parse_punctuation(",")
-        y = parser.parse_integer()
-        parser.parse_punctuation(",")
         memref = parser.parse_operand()
         static_offsets = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE, parser.parse_integer
@@ -154,8 +139,6 @@ class DmaMemcpyNdOp(IRDLOperation):
         parser.parse_type()  # memref type
 
         return cls(
-            x,
-            y,
             memref,
             static_offsets,
             static_sizes,
