@@ -11,7 +11,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      MLIR-AIE-Version: 0.0.1.2025042204+24208c0
+      MLIR-AIE-Version: 0.0.1.2025071717+c5b3be6
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
