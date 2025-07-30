@@ -1202,7 +1202,7 @@ class ObjectFifoOp(IRDLOperation):
     @staticmethod
     def from_referenced_type(
         producerTile: Operation | SSAValue,
-        consumerTiles: list[Operation | SSAValue],
+        consumerTiles: Sequence[Operation | SSAValue],
         name: str,
         elemNumber: IntegerAttr[IntegerType],
         referenced_type: Attribute,
