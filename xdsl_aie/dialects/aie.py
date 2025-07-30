@@ -1153,6 +1153,8 @@ class ObjectFifoOp(IRDLOperation):
     plio = prop_def(BoolAttr)
     disable_synchronization = prop_def(BoolAttr)
 
+    repeat_count = opt_prop_def(IntegerAttr)
+
     traits = traits_def(SymbolOpInterface(), HasParent(DeviceOp))
 
     def __init__(
@@ -1171,6 +1173,7 @@ class ObjectFifoOp(IRDLOperation):
         disable_synchronization: bool | IntegerAttr[IntegerType] = False,
         plio: bool | BoolAttr = False,
         via_DMA: bool | BoolAttr = False,
+        repeat_count: int | IntegerAttr[IntegerType] | None = None,
     ):
         if isinstance(disable_synchronization, bool):
             disable_synchronization = IntegerAttr.from_int_and_width(
@@ -1184,6 +1187,8 @@ class ObjectFifoOp(IRDLOperation):
             sym_name = StringAttr(sym_name)
         if isinstance(via_DMA, bool):
             via_DMA = IntegerAttr.from_int_and_width(int(via_DMA), 1)
+        if isinstance(repeat_count, int):
+            repeat_count = IntegerAttr.from_int_and_width(repeat_count, 32)
 
         super().__init__(
             properties={
@@ -1193,6 +1198,7 @@ class ObjectFifoOp(IRDLOperation):
                 "elemNumber": elemNumber,
                 "elemType": elemType,
                 "plio": plio,
+                "repeat_count": repeat_count,
                 "sym_name": sym_name,
                 "via_DMA": via_DMA,
             },
@@ -1207,6 +1213,7 @@ class ObjectFifoOp(IRDLOperation):
         elemNumber: IntegerAttr[IntegerType],
         referenced_type: Attribute,
         shape: Iterable[int | IntAttr],
+        repeat_count: IntegerAttr[IntegerType] | int = 1,
     ) -> ObjectFifoOp:
         elemType = ObjectFIFO[Attribute].from_element_type_and_shape(
             referenced_type, shape
@@ -1222,6 +1229,7 @@ class ObjectFifoOp(IRDLOperation):
             False,
             False,
             False,
+            repeat_count,
         )
 
     def print(self, printer: Printer):
@@ -1243,9 +1251,13 @@ class ObjectFifoOp(IRDLOperation):
         printer.print("}, ")
 
         printer.print(self.elemNumber)
+        printer.print(") ")
+
+        if self.repeat_count is not None:
+            printer.print(f"{{repeat_count = {self.repeat_count.value.data} : i32}} ")
 
         printer.print(
-            ") : !aie.objectfifo<",
+            ": !aie.objectfifo<",
             self.elemType.buffer,
             ">",
         )
@@ -1271,6 +1283,12 @@ class ObjectFifoOp(IRDLOperation):
         elemNumber = parser.parse_attribute()
         assert isa(elemNumber, IntegerAttr[IntegerType])
         parser.parse_characters(")")
+        attrs = parser.parse_optional_attr_dict()
+        if "repeat_count" in attrs:
+            repeat_count = attrs["repeat_count"]
+            assert isa(repeat_count, IntegerAttr[IntegerType])
+        else:
+            repeat_count = None
         parser.parse_characters(":")
         elemType = parser.parse_type()
 
@@ -1281,6 +1299,7 @@ class ObjectFifoOp(IRDLOperation):
             elemType,
             name,
             dimensionsToStream=dimensionsToStream,
+            repeat_count=repeat_count,
         )
 
 
