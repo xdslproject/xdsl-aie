@@ -33,10 +33,6 @@ aie.device(npu1_3col) {
 	arith.constant 1 : i32
 }
 
-aie.device(npu1_4col) {
-	arith.constant 1 : i32
-}
-
 aie.device(npu2) {
 	arith.constant 1 : i32
 }
@@ -61,9 +57,6 @@ aie.device(npu2) {
 // CHECK-NEXT:     %{{.*}} = arith.constant 1 : i32
 // CHECK-NEXT:   }
 // CHECK-NEXT:   aie.device(npu1_3col) {
-// CHECK-NEXT:     %{{.*}} = arith.constant 1 : i32
-// CHECK-NEXT:   }
-// CHECK-NEXT:   aie.device(npu1_4col) {
 // CHECK-NEXT:     %{{.*}} = arith.constant 1 : i32
 // CHECK-NEXT:   }
 // CHECK-NEXT:   aie.device(npu2) {
@@ -97,10 +90,6 @@ aie.device(npu2) {
 // CHECK-GENERIC-NEXT:     "aie.end"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
 // CHECK-GENERIC-NEXT:   "aie.device"() <{device = 7 : i32}> ({
-// CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{value = 1 : i32}> : () -> i32
-// CHECK-GENERIC-NEXT:     "aie.end"() : () -> ()
-// CHECK-GENERIC-NEXT:   }) : () -> ()
-// CHECK-GENERIC-NEXT:   "aie.device"() <{device = 8 : i32}> ({
 // CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{value = 1 : i32}> : () -> i32
 // CHECK-GENERIC-NEXT:     "aie.end"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
