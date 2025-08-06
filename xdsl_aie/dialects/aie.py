@@ -1202,7 +1202,7 @@ class ObjectFifoOp(IRDLOperation):
                 "sym_name": sym_name,
                 "via_DMA": via_DMA,
             },
-            operands=[producerTile, *consumerTiles],
+            operands=[producerTile, consumerTiles],
         )
 
     @staticmethod
