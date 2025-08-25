@@ -1222,7 +1222,11 @@ class ObjectFifoOp(IRDLOperation):
         producerTile: Operation | SSAValue,
         consumerTiles: Sequence[Operation | SSAValue],
         name: str,
-        elemNumber: IntegerAttr[IntegerType],
+        elemNumber: int
+        | IntegerAttr[IntegerType]
+        | Sequence[int]
+        | Sequence[IntegerAttr[IntegerType]]
+        | ArrayAttr[IntegerAttr[IntegerType]],
         referenced_type: Attribute,
         shape: Iterable[int | IntAttr],
         repeat_count: IntegerAttr[IntegerType] | int = 1,
