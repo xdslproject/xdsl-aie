@@ -1143,7 +1143,9 @@ class ObjectFifoOp(IRDLOperation):
 
     sym_name = prop_def(StringAttr)
 
-    elemNumber = prop_def(IntegerAttr[IntegerType])
+    elemNumber = prop_def(
+        IntegerAttr[IntegerType] | ArrayAttr[IntegerAttr[IntegerType]]
+    )
     elemType = prop_def(ObjectFIFO[Attribute])
 
     dimensionsToStream = prop_def(BDDimLayoutArrayAttr)
@@ -1152,7 +1154,6 @@ class ObjectFifoOp(IRDLOperation):
     via_DMA = prop_def(BoolAttr)
     plio = prop_def(BoolAttr)
     disable_synchronization = prop_def(BoolAttr)
-
     repeat_count = opt_prop_def(IntegerAttr)
 
     traits = traits_def(SymbolOpInterface(), HasParent(DeviceOp))
@@ -1161,7 +1162,11 @@ class ObjectFifoOp(IRDLOperation):
         self,
         producerTile: Operation | SSAValue,
         consumerTiles: Sequence[Operation | SSAValue],
-        elemNumber: int | IntegerAttr[IntegerType],
+        elemNumber: int
+        | IntegerAttr[IntegerType]
+        | Sequence[int]
+        | Sequence[IntegerAttr[IntegerType]]
+        | ArrayAttr[IntegerAttr[IntegerType]],
         elemType: Attribute,
         sym_name: str | StringAttr,
         dimensionsToStream: BDDimLayoutArrayAttr = BDDimLayoutArrayAttr(
@@ -1181,6 +1186,13 @@ class ObjectFifoOp(IRDLOperation):
             )
         if isinstance(elemNumber, int):
             elemNumber = IntegerAttr.from_int_and_width(elemNumber, 32)
+        if not isinstance(elemNumber, IntegerAttr | ArrayAttr):
+            elemNumber = ArrayAttr(
+                [
+                    IntegerAttr.from_int_and_width(i, 32) if isinstance(i, int) else i
+                    for i in elemNumber
+                ]
+            )
         if isinstance(plio, bool):
             plio = IntegerAttr.from_int_and_width(int(plio), 1)
         if isinstance(sym_name, str):
@@ -1281,7 +1293,9 @@ class ObjectFifoOp(IRDLOperation):
         )
         parser.parse_characters(",")
         elemNumber = parser.parse_attribute()
-        assert isa(elemNumber, IntegerAttr[IntegerType])
+        assert isa(
+            elemNumber, IntegerAttr[IntegerType] | ArrayAttr[IntegerAttr[IntegerType]]
+        )
         parser.parse_characters(")")
         attrs = parser.parse_optional_attr_dict()
         if "repeat_count" in attrs:
