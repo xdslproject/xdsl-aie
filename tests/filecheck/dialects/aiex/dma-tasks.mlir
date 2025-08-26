@@ -47,5 +47,3 @@
 // CHECK-GENERIC-NEXT:     "aie.end"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
-
-
