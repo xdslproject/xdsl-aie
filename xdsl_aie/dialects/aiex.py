@@ -22,10 +22,11 @@ from xdsl.irdl import (
     opt_prop_def,
     prop_def,
     region_def,
+    result_def,
     traits_def,
     var_operand_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import IndexType, Parser
 from xdsl.printer import Printer
 from xdsl.traits import HasParent, NoTerminator
 from xdsl.utils.hints import isa
@@ -210,12 +211,80 @@ class RuntimeSequenceOp(IRDLOperation):
         return cls(body=region, name=name)
 
 
+@irdl_op_definition
+class DmaConfigureTaskOp(IRDLOperation):
+    name = "aiex.dma_configure_task"
+
+    tile = operand_def(IndexType)
+    result = result_def(IndexType)
+
+    body = region_def()
+
+    direction = prop_def(IntegerAttr[IntegerType])  # TODO: fix for DMAChannelDirAttr
+    channel = prop_def(IntegerAttr[IntegerType])
+    issue_token = opt_prop_def(BoolAttr)
+    repeat_count = opt_prop_def(IntegerAttr[IntegerType])
+
+    traits = traits_def(HasParent(RuntimeSequenceOp))
+
+    def __init__(
+        self,
+        tile: SSAValue | Operation,
+        direction: int | IntegerAttr[IntegerType],
+        channel: int | IntegerAttr[IntegerType],
+        issue_token: bool | BoolAttr | None = None,
+        repeat: int | IntegerAttr[IntegerType] | None = None,
+    ):
+        if isinstance(direction, int):
+            direction = IntegerAttr.from_int_and_width(direction, 32)
+        if isinstance(channel, int):
+            channel = IntegerAttr.from_int_and_width(channel, 32)
+        if isinstance(issue_token, bool):
+            issue_token = IntegerAttr.from_int_and_width(int(issue_token), 1)
+        if isinstance(repeat, int):
+            repeat = IntegerAttr.from_int_and_width(repeat, 32)
+
+        super().__init__(
+            operands=[tile],
+            properties={
+                "direction": direction,
+                "channel": channel,
+                "issue_token": issue_token,
+                "repeat": repeat,
+            },
+            result_types=[IndexType()],
+        )
+
+
+@irdl_op_definition
+class DmaStartTaskOp(IRDLOperation):
+    name = "aiex.dma_start_task"
+
+    task = operand_def(IndexType)
+
+    def __init__(self, task: SSAValue | Operation):
+        super().__init__(operands=[task])
+
+
+@irdl_op_definition
+class DmaAwaitTaskOp(IRDLOperation):
+    name = "aiex.dma_await_task"
+
+    task = operand_def(IndexType)
+
+    def __init__(self, task: SSAValue | Operation):
+        super().__init__(operands=[task])
+
+
 AIEX = Dialect(
     "aiex",
     [
         DmaMemcpyNdOp,
         DmaWaitOp,
         RuntimeSequenceOp,
+        DmaConfigureTaskOp,
+        DmaStartTaskOp,
+        DmaAwaitTaskOp,
     ],
     [],
 )
