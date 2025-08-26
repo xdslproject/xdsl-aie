@@ -508,61 +508,62 @@ class CoreOp(IRDLOperation):
 @irdl_op_definition
 class DMABDOp(IRDLOperation):
     name = "aie.dma_bd"
-    offset = attr_def(IntegerAttr[IntegerType])
-    length = attr_def(IntegerAttr[IntegerType])
+
     buffer = operand_def(builtin.MemRefType)
-    dimensions = opt_attr_def(
-        IntegerAttr[IntegerType]
-    )  # TODO: this should be implemented as a DimTupleArrayAttr: check https://xilinx.github.io/mlir-aie/AIEDialect.html
+
+    offset = prop_def(IntegerAttr[IntegerType])
+    len = opt_prop_def(IntegerAttr[IntegerType])
+
+    dimensions = opt_prop_def(BDDimLayoutArrayAttr)
+    pad_dimensions = opt_prop_def(BDDimLayoutArrayAttr)
+
+    pad_value = opt_prop_def(IntegerAttr[IntegerType])
+    bd_id = opt_prop_def(IntegerAttr[IntegerType])
+
+    packet = opt_prop_def(Attribute)
+
+    burst_length = opt_prop_def(IntegerAttr[IntegerType])
+    next_bd_id = opt_prop_def(IntegerAttr[IntegerType])
 
     def __init__(
         self,
-        offset: IntegerAttr[IntegerType],
-        length: IntegerAttr[IntegerType],
-        dimensions: None | IntegerAttr[IntegerType],
         buffer: Operation | SSAValue,
+        offset: int | IntegerAttr[IntegerType],
+        len: int | IntegerAttr[IntegerType] | None = None,
+        dimensions: BDDimLayoutArrayAttr | None = None,
+        pad_dimensions: BDDimLayoutArrayAttr | None = None,
+        pad_value: int | IntegerAttr[IntegerType] | None = None,
+        bd_id: int | IntegerAttr[IntegerType] | None = None,
+        packet: Attribute | None = None,
+        burst_length: int | IntegerAttr[IntegerType] | None = None,
+        next_bd_id: int | IntegerAttr[IntegerType] | None = None,
     ):
-        if dimensions is None:
-            super().__init__(
-                attributes={"offset": offset, "length": length},
-                operands=[buffer],
-            )
-        else:
-            super().__init__(
-                attributes={
-                    "offset": offset,
-                    "length": length,
-                    "dimensions": dimensions,
-                },
-                operands=[buffer],
-            )
-
-    def print(self, printer: Printer):
-        printer.print("(")
-        printer.print_operand(self.buffer)
-        printer.print(
-            ": ",
-            self.buffer.type,
-            ", ",
-            self.offset.value.data,
-            ", ",
-            self.length.value.data,
-            ")",
+        if isinstance(offset, int):
+            offset = IntegerAttr.from_int_and_width(offset, 32)
+        if isinstance(len, int):
+            len = IntegerAttr.from_int_and_width(len, 32)
+        if isinstance(pad_value, int):
+            pad_value = IntegerAttr.from_int_and_width(pad_value, 32)
+        if isinstance(bd_id, int):
+            bd_id = IntegerAttr.from_int_and_width(bd_id, 32)
+        if isinstance(burst_length, int):
+            burst_length = IntegerAttr.from_int_and_width(burst_length, 32)
+        if isinstance(next_bd_id, int):
+            next_bd_id = IntegerAttr.from_int_and_width(next_bd_id, 32)
+        super().__init__(
+            properties={
+                "offset": offset,
+                "len": len,
+                "dimensions": dimensions,
+                "pad_dimensions": pad_dimensions,
+                "pad_value": pad_value,
+                "bd_id": bd_id,
+                "packet": packet,
+                "burst_length": burst_length,
+                "next_bd_id": next_bd_id,
+            },
+            operands=[buffer],
         )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> DMABDOp:
-        parser.parse_characters("(")
-        buffer = parser.parse_operand()
-        parser.parse_characters(":")
-        parser.parse_type()
-        parser.parse_characters(",")
-        offset = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
-        parser.parse_characters(",")
-        length = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
-        parser.parse_characters(")")
-
-        return DMABDOp(offset, length, None, buffer)
 
 
 @irdl_op_definition
