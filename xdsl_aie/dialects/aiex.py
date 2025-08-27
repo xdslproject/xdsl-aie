@@ -5,6 +5,7 @@ from typing_extensions import Self
 from xdsl.dialects.builtin import (
     BoolAttr,
     DenseArrayBase,
+    FlatSymbolRefAttr,
     IntegerAttr,
     IntegerType,
     MemRefType,
@@ -259,6 +260,45 @@ class DmaConfigureTaskOp(IRDLOperation):
 
 
 @irdl_op_definition
+class DmaConfigureTaskForOp(IRDLOperation):
+    name = "aiex.dma_configure_task_for"
+
+    result = result_def(IndexType)
+
+    body = region_def()
+
+    alloc = prop_def(FlatSymbolRefAttr)
+    issue_token = opt_prop_def(BoolAttr)
+    repeat_count = opt_prop_def(IntegerAttr[IntegerType])
+
+    traits = traits_def(HasParent(RuntimeSequenceOp))
+
+    def __init__(
+        self,
+        alloc: str | FlatSymbolRefAttr,
+        body: Region,
+        issue_token: bool | BoolAttr | None = None,
+        repeat: int | IntegerAttr[IntegerType] | None = None,
+    ):
+        if isinstance(alloc, str):
+            alloc = SymbolRefAttr(alloc)
+        if isinstance(issue_token, bool):
+            issue_token = IntegerAttr.from_int_and_width(int(issue_token), 1)
+        if isinstance(repeat, int):
+            repeat = IntegerAttr.from_int_and_width(repeat, 32)
+
+        super().__init__(
+            properties={
+                "alloc": alloc,
+                "issue_token": issue_token,
+                "repeat": repeat,
+            },
+            result_types=[IndexType()],
+            regions=[body],
+        )
+
+
+@irdl_op_definition
 class DmaStartTaskOp(IRDLOperation):
     name = "aiex.dma_start_task"
 
@@ -285,6 +325,7 @@ AIEX = Dialect(
         DmaWaitOp,
         RuntimeSequenceOp,
         DmaConfigureTaskOp,
+        DmaConfigureTaskForOp,
         DmaStartTaskOp,
         DmaAwaitTaskOp,
     ],
