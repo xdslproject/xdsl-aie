@@ -949,22 +949,12 @@ class NextBDOp(IRDLOperation):
 
     dest = successor_def()
 
-    traits = traits_def(
-        HasParent(MemOp, MemTileDMAOp, FuncOp, ShimDMAOp), IsTerminator()
-    )
+    traits = traits_def(IsTerminator())
+
+    assembly_format = "$dest attr-dict"
 
     def __init__(self, dest: Block):
         super().__init__(successors=[dest])
-
-    def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_block_name(self.dest)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> NextBDOp:
-        dest = parser.parse_successor()
-
-        return NextBDOp(dest)
 
 
 @irdl_op_definition

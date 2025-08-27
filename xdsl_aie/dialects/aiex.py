@@ -232,6 +232,7 @@ class DmaConfigureTaskOp(IRDLOperation):
         tile: SSAValue | Operation,
         direction: int | IntegerAttr[IntegerType],
         channel: int | IntegerAttr[IntegerType],
+        body: Region,
         issue_token: bool | BoolAttr | None = None,
         repeat: int | IntegerAttr[IntegerType] | None = None,
     ):
@@ -253,6 +254,7 @@ class DmaConfigureTaskOp(IRDLOperation):
                 "repeat": repeat,
             },
             result_types=[IndexType()],
+            regions=[body],
         )
 
 
