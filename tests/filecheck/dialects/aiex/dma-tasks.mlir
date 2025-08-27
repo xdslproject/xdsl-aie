@@ -92,3 +92,23 @@
 // CHECK-GENERIC-NEXT:     "aie.end"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
+
+// -----
+
+"builtin.module"() ({
+  "aie.device"() <{device = 4 : i32}> ({
+    %0 = "aie.tile"() <{col = 0 : i32, row = 0 : i32}> : () -> index
+    %1 = "aie.tile"() <{col = 0 : i32, row = 2 : i32}> : () -> index
+    "aie.shim_dma_allocation"() <{channel_dir = 1 : i32, channel_index = 0 : i64, col = 0 : i64, plio = false, sym_name = @alloc0}> : () -> ()
+    "aiex.runtime_sequence"() ({
+    ^0(%arg0 : memref<8xi16>):
+      %2 = "aiex.dma_configure_task_for"() <{alloc = @alloc0}> ({
+        "aie.dma_bd"(%arg0) <{len = 8 : i32, offset = 0 : i32}> : (memref<8xi16>) -> ()
+        "aie.end"() : () -> ()
+      }) : () -> index
+      "aiex.dma_start_task"(%2) : (index) -> ()
+      "aiex.dma_await_task"(%2) : (index) -> ()
+    }) : () -> ()
+    "aie.end"() : () -> ()
+  }) : () -> ()
+}) : () -> ()

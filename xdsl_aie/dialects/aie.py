@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     I32,
     ArrayAttr,
     BoolAttr,
+    FlatSymbolRefAttr,
     Float32Type,
     IndexType,
     IntAttr,
@@ -1645,28 +1646,33 @@ class PutStreamOp(IRDLOperation):
 
 @irdl_op_definition
 class ShimDMAAllocationOp(IRDLOperation):
-    name = "aie.shimDMAAllocation"
+    name = "aie.shim_dma_allocation"
 
-    sym_name = attr_def(StringAttr)
-    channelDir = attr_def(IntegerAttr[I32])
-    channelIndex = attr_def(IntegerAttr[IntegerType])
-    col = attr_def(IntegerAttr[IntegerType])
+    sym_name = prop_def(FlatSymbolRefAttr)
+    channel_dir = prop_def(IntegerAttr[I32])
+    channel_index = prop_def(IntegerAttr[IntegerType])
+    col = prop_def(IntegerAttr[IntegerType])
+    plio = prop_def(BoolAttr)
 
     traits = traits_def(HasParent(DeviceOp))
 
     def __init__(
         self,
-        sym_name: StringAttr,
+        sym_name: str | FlatSymbolRefAttr,
         channelDir: IntegerAttr[IntegerType],
         channelIndex: IntegerAttr[IntegerType],
         col: IntegerAttr[IntegerType],
+        plio: BoolAttr,
     ):
+        if isinstance(sym_name, str):
+            sym_name = SymbolRefAttr(sym_name)
         super().__init__(
             attributes={
                 "sym_name": sym_name,
                 "channelDir": channelDir,
                 "channelIndex": channelIndex,
                 "col": col,
+                "plio": plio,
             }
         )
 
@@ -1789,6 +1795,7 @@ AIE = Dialect(
         PacketSourceOp,
         PutCascadeOp,
         PutStreamOp,
+        ShimDMAAllocationOp,
         ShimDMAOp,
         ShimMuxOp,
         ShimSwitchBoxOp,
