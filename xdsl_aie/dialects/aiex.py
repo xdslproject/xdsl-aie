@@ -278,20 +278,20 @@ class DmaConfigureTaskForOp(IRDLOperation):
         alloc: str | FlatSymbolRefAttr,
         body: Region,
         issue_token: bool | BoolAttr | None = None,
-        repeat: int | IntegerAttr[IntegerType] | None = None,
+        repeat_count: int | IntegerAttr[IntegerType] | None = None,
     ):
         if isinstance(alloc, str):
             alloc = SymbolRefAttr(alloc)
         if isinstance(issue_token, bool):
             issue_token = IntegerAttr.from_int_and_width(int(issue_token), 1)
-        if isinstance(repeat, int):
-            repeat = IntegerAttr.from_int_and_width(repeat, 32)
+        if isinstance(repeat_count, int):
+            repeat_count = IntegerAttr.from_int_and_width(repeat_count, 32)
 
         super().__init__(
             properties={
                 "alloc": alloc,
                 "issue_token": issue_token,
-                "repeat": repeat,
+                "repeat_count": repeat_count,
             },
             result_types=[IndexType()],
             regions=[body],
