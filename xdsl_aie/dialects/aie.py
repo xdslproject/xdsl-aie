@@ -69,6 +69,7 @@ from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
     IsTerminator,
+    NoTerminator,
     SingleBlockImplicitTerminator,
     SymbolOpInterface,
     SymbolTable,
@@ -1758,6 +1759,50 @@ class WireOp(IRDLOperation):
             operands=[source, dest],
         )
 
+@irdl_op_definition
+class RuntimeSequenceOp(IRDLOperation):
+    name = "aie.runtime_sequence"
+
+    sym_name = opt_prop_def(StringAttr)
+
+    body = region_def()
+
+    traits = traits_def(HasParent(DeviceOp), NoTerminator())
+
+    def __init__(self, body: Region, name: StringAttr | str | None = None):
+        if isinstance(name, str):
+            name = StringAttr(name)
+
+        super().__init__(properties={"sym_name": name}, regions=[body])
+
+    def print(self, printer: Printer):
+        if self.sym_name:
+            printer.print_string(" @" + self.sym_name.data)
+        printer.print_string("(")
+        if self.body.blocks:
+            printer.print_list(self.body.blocks[0].args, printer.print_block_argument)
+        printer.print_string(") ")
+        printer.print_region(
+            self.body, print_entry_block_args=False, print_empty_block=False
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        name = parser.parse_optional_symbol_name()
+        parser.parse_characters("(")
+        args: list[Parser.Argument] | None = []
+        while True:
+            if arg := parser.parse_optional_argument():
+                args.append(arg)
+            if not parser.parse_optional_punctuation(","):
+                break
+        parser.parse_characters(")")
+        if not len(args):
+            args = None
+        region = parser.parse_region(args)
+        return cls(body=region, name=name)
+
+
 
 AIE = Dialect(
     "aie",
@@ -1803,6 +1848,7 @@ AIE = Dialect(
         UseLockOp,
         WireOp,
         EndOp,
+        RuntimeSequenceOp
     ],
     [
         BDDimLayoutArrayAttr,
