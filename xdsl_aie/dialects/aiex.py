@@ -170,7 +170,7 @@ class DmaWaitOp(IRDLOperation):
 
 @irdl_op_definition
 class RuntimeSequenceOp(IRDLOperation):
-    name = "aiex.runtime_sequence"
+    name = "aie.runtime_sequence"
 
     sym_name = opt_prop_def(StringAttr)
 
