@@ -246,14 +246,17 @@ class BDDimLayoutArrayArrayAttr(Data[BDDimLayoutArrayArray], OpaqueSyntaxAttribu
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> BDDimLayoutArrayArray:
-        parser.parse_punctuation("[")
-        parser.parse_punctuation("[")
-        parser.parse_punctuation("]")
-        parser.parse_punctuation("]")
-        return BDDimLayoutArrayArray(tuple(tuple()))
+        bd_dims = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE,
+            lambda: BDDimLayoutArrayAttr.parse_parameter(parser),
+        )
+        return BDDimLayoutArrayArray(bd_dims)
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string("[[]]")
+        bd_dims = [
+            f"[{', '.join([str(dim) for dim in dim_array])}]" for dim_array in self.data
+        ]
+        printer.print(f"[{', '.join(bd_dims)}]")
 
 
 @irdl_op_definition
@@ -1265,8 +1268,22 @@ class ObjectFifoOp(IRDLOperation):
         printer.print(", ")
 
         # consumerTile
+        def print_consumer(val: tuple[SSAValue, BDDimLayoutArray]):
+            consumer, dimensionsFromStream = val
+            printer.print(consumer)
+            if len(dimensionsFromStream):
+                printer.print(" dimensionsFromStream ")
+                BDDimLayoutArrayAttr(dimensionsFromStream).print_parameter(printer)
+
         printer.print("{")
-        printer.print_list(self.consumerTiles, printer.print)
+        printer.print_list(
+            zip(
+                self.consumerTiles,
+                self.dimensionsFromStreamPerConsumer.data,
+                strict=True,
+            ),
+            print_consumer,
+        )
         printer.print("}, ")
 
         printer.print(self.elemNumber)
@@ -1295,8 +1312,19 @@ class ObjectFifoOp(IRDLOperation):
             parser.parse_characters(",")
         else:
             dimensionsToStream = BDDimLayoutArrayAttr(BDDimLayoutArray(tuple()))
-        consumerTiles = parser.parse_comma_separated_list(
-            parser.Delimiter.BRACES, parser.parse_operand
+
+        def parse_consumer():
+            consumer = parser.parse_operand()
+            if parser.parse_optional_characters("dimensionsFromStream") is None:
+                return consumer, BDDimLayoutArray(tuple())
+            return consumer, BDDimLayoutArrayAttr.parse_parameter(parser)
+
+        consumers = parser.parse_comma_separated_list(
+            parser.Delimiter.BRACES, parse_consumer
+        )
+        consumerTiles = [x[0] for x in consumers]
+        dimensionsFromStream = BDDimLayoutArrayArrayAttr(
+            BDDimLayoutArrayArray([x[1] for x in consumers])
         )
         parser.parse_characters(",")
         elemNumber = parser.parse_attribute()
@@ -1320,6 +1348,7 @@ class ObjectFifoOp(IRDLOperation):
             elemType,
             name,
             dimensionsToStream=dimensionsToStream,
+            dimensionsFromStreamPerConsumer=dimensionsFromStream,
             repeat_count=repeat_count,
         )
 
