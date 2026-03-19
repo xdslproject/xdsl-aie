@@ -10,7 +10,7 @@ aie.device(npu1) {
 // CHECK-NEXT:   aie.device(npu1) {
 
 // CHECK-GENERIC:      "builtin.module"() ({
-// CHECK-GENERIC-NEXT:   "aie.device"() <{device = 4 : i32}> ({
+// CHECK-GENERIC-NEXT:   "aie.device"() <{device = 4 : i32, sym_name = "main"}> ({
 
 
 %1 = aie.tile(0, 1)
