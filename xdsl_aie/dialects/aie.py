@@ -1759,6 +1759,7 @@ class WireOp(IRDLOperation):
             operands=[source, dest],
         )
 
+
 @irdl_op_definition
 class RuntimeSequenceOp(IRDLOperation):
     name = "aie.runtime_sequence"
@@ -1801,7 +1802,6 @@ class RuntimeSequenceOp(IRDLOperation):
             args = None
         region = parser.parse_region(args)
         return cls(body=region, name=name)
-
 
 
 AIE = Dialect(
@@ -1848,7 +1848,7 @@ AIE = Dialect(
         UseLockOp,
         WireOp,
         EndOp,
-        RuntimeSequenceOp
+        RuntimeSequenceOp,
     ],
     [
         BDDimLayoutArrayAttr,
