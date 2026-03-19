@@ -51,6 +51,10 @@ aie.objectfifo @of5 (%1, {%2}, [2, 2]) : !aie.objectfifo<memref<16xi32>>
 // CHECK-NEXT: aie.objectfifo @of5(%{{.*}}, {%{{.*}}}, [2{{( : i64)?}}, 2{{( : i64)?}}]) : !aie.objectfifo<memref<16xi32>>
 // CHECK-GENERIC-NEXT: "aie.objectfifo"(%{{.*}}, %{{.*}}) <{dimensionsFromStreamPerConsumer = #aie<bd_dim_layout_array_array[[]]>, dimensionsToStream = #aie<bd_dim_layout_array[]>, disable_synchronization = false, elemNumber = [2{{( : i64)?}}, 2{{( : i64)?}}], elemType = !aie.objectfifo<memref<16xi32>>, plio = false, sym_name = "of5", via_DMA = false}> : (index, index) -> ()
 
+aie.objectfifo @of6 (%1, {%2 dimensionsFromStream [<size = 8, stride = 128>, <size = 8, stride = 4>, <size = 4, stride = 32>, <size = 4, stride = 1>]}, [2, 2]) : !aie.objectfifo<memref<16xi32>>
+// CHECK-NEXT: aie.objectfifo @of6(%{{.*}}, {%{{.*}} dimensionsFromStream [<size = 8, stride = 128>, <size = 8, stride = 4>, <size = 4, stride = 32>, <size = 4, stride = 1>]}, [2{{( : i64)?}}, 2{{( : i64)?}}]) : !aie.objectfifo<memref<16xi32>> 
+// CHECK-GENERIC-NEXT: "aie.objectfifo"(%{{.*}}, %{{.*}}) <{dimensionsFromStreamPerConsumer = #aie<bd_dim_layout_array_array[[<size = 8, stride = 128>, <size = 8, stride = 4>, <size = 4, stride = 32>, <size = 4, stride = 1>]]>, dimensionsToStream = #aie<bd_dim_layout_array[]>, disable_synchronization = false, elemNumber = [2{{( : i64)?}}, 2{{( : i64)?}}], elemType = !aie.objectfifo<memref<16xi32>>, plio = false, sym_name = "of6", via_DMA = false}> : (index, index) -> ()
+
 aie.objectfifo.link [@of1] -> [@of2] ([] [])
 
 // CHECK-NEXT: aie.objectfifo.link [@of1] -> [@of2]([] [])
