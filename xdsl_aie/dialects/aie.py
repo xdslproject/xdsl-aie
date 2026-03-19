@@ -1774,13 +1774,13 @@ class WireOp(IRDLOperation):
 class RuntimeSequenceOp(IRDLOperation):
     name = "aie.runtime_sequence"
 
-    sym_name = opt_prop_def(StringAttr)
+    sym_name = prop_def(StringAttr)
 
     body = region_def()
 
     traits = traits_def(HasParent(DeviceOp), NoTerminator())
 
-    def __init__(self, body: Region, name: StringAttr | str | None = None):
+    def __init__(self, body: Region, name: StringAttr | str = "sequence"):
         if isinstance(name, str):
             name = StringAttr(name)
 
@@ -1800,6 +1800,8 @@ class RuntimeSequenceOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         name = parser.parse_optional_symbol_name()
+        if name is None:
+            name = StringAttr("sequence")
         parser.parse_characters("(")
         args: list[Parser.Argument] | None = []
         while True:

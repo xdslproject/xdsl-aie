@@ -11,8 +11,8 @@ aie.device(npu1_1col) {
 aie.objectfifo @test_of(%tile_0_0, {%tile_0_1}, 2 : i32) : !aie.objectfifo<memref<4096xi8>>
 aie.runtime_sequence (%4 : memref<4096xi8>) {
 
-// CHECK: aie.runtime_sequence(%{{.*}} : memref<4096xi8>) {
-// CHECK-GENERIC: "aie.runtime_sequence"() ({
+// CHECK: aie.runtime_sequence @sequence(%{{.*}} : memref<4096xi8>) {
+// CHECK-GENERIC: "aie.runtime_sequence"() <{sym_name = "sequence"}> ({
 // CHECK-GENERIC-NEXT: ^0(%{{.*}} : memref<4096xi8>):
 
 aiex.npu.dma_memcpy_nd(%4[0, 0, 0, 0][1, 1, 1, 4096][0, 0, 0, 1]) {id = 2 : i64, issue_token = true, metadata = @test_of} : memref<4096xi8>
