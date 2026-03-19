@@ -720,14 +720,24 @@ class DeviceOp(IRDLOperation):
     name = "aie.device"
 
     region = region_def("single_block")
+    sym_name = prop_def(StringAttr)
 
     device = prop_def(IntegerAttr[IntegerType])
     traits = traits_def(
         SymbolTable(), SingleBlockImplicitTerminator(EndOp), HasParent(ModuleOp)
     )
 
-    def __init__(self, device: IntegerAttr[IntegerType], region: Region):
-        super().__init__(properties={"device": device}, regions=[region])
+    def __init__(
+        self,
+        device: IntegerAttr[IntegerType],
+        region: Region,
+        sym_name: str | StringAttr = "main",
+    ):
+        if isinstance(sym_name, str):
+            sym_name = StringAttr(sym_name)
+        super().__init__(
+            properties={"device": device, "sym_name": sym_name}, regions=[region]
+        )
 
     def print(self, printer: Printer):
         printer.print("(")
