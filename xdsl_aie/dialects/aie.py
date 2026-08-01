@@ -49,6 +49,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     IRDLOperation,
     ParameterDef,
     attr_def,
@@ -56,6 +57,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    opt_operand_def,
     opt_prop_def,
     prop_def,
     region_def,
@@ -516,58 +518,80 @@ class DMABDOp(IRDLOperation):
 
     buffer = operand_def(builtin.MemRefType)
 
-    offset = prop_def(IntegerAttr[IntegerType])
-    len = opt_prop_def(IntegerAttr[IntegerType])
+    # offset and len are in elements, not bytes, and are either a static
+    # attribute or a runtime value. Absent, they mean zero and the whole buffer.
+    offset = opt_operand_def(builtin.i32)
+    len = opt_operand_def(builtin.i32)
+    static_offset = opt_prop_def(IntegerAttr[IntegerType])
+    static_len = opt_prop_def(IntegerAttr[IntegerType])
 
-    dimensions = opt_prop_def(BDDimLayoutArrayAttr)
+    # n-d addressing, outermost dimension first, mixed static and dynamic the
+    # same way as aiex.npu.dma_memcpy_nd.
+    sizes = var_operand_def(builtin.i64)
+    strides = var_operand_def(builtin.i64)
+    static_sizes = opt_prop_def(builtin.DenseArrayBase)
+    static_strides = opt_prop_def(builtin.DenseArrayBase)
+
     pad_dimensions = opt_prop_def(BDDimLayoutArrayAttr)
-
     pad_value = opt_prop_def(IntegerAttr[IntegerType])
     bd_id = opt_prop_def(IntegerAttr[IntegerType])
 
     packet = opt_prop_def(Attribute)
 
     burst_length = opt_prop_def(IntegerAttr[IntegerType])
+    offset_parameter = opt_prop_def(builtin.SymbolRefAttr)
+    offset_state_table_idx = opt_prop_def(IntegerAttr[IntegerType])
     next_bd_id = opt_prop_def(IntegerAttr[IntegerType])
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
         self,
         buffer: Operation | SSAValue,
-        offset: int | IntegerAttr[IntegerType],
+        offset: int | IntegerAttr[IntegerType] | None = None,
         len: int | IntegerAttr[IntegerType] | None = None,
-        dimensions: BDDimLayoutArrayAttr | None = None,
+        sizes: Sequence[int] | None = None,
+        strides: Sequence[int] | None = None,
         pad_dimensions: BDDimLayoutArrayAttr | None = None,
         pad_value: int | IntegerAttr[IntegerType] | None = None,
         bd_id: int | IntegerAttr[IntegerType] | None = None,
         packet: Attribute | None = None,
         burst_length: int | IntegerAttr[IntegerType] | None = None,
+        offset_parameter: builtin.SymbolRefAttr | None = None,
+        offset_state_table_idx: int | IntegerAttr[IntegerType] | None = None,
         next_bd_id: int | IntegerAttr[IntegerType] | None = None,
     ):
-        if isinstance(offset, int):
-            offset = IntegerAttr.from_int_and_width(offset, 32)
-        if isinstance(len, int):
-            len = IntegerAttr.from_int_and_width(len, 32)
-        if isinstance(pad_value, int):
-            pad_value = IntegerAttr.from_int_and_width(pad_value, 32)
-        if isinstance(bd_id, int):
-            bd_id = IntegerAttr.from_int_and_width(bd_id, 32)
-        if isinstance(burst_length, int):
-            burst_length = IntegerAttr.from_int_and_width(burst_length, 32)
-        if isinstance(next_bd_id, int):
-            next_bd_id = IntegerAttr.from_int_and_width(next_bd_id, 32)
+        def i32(value: int | IntegerAttr[IntegerType] | None):
+            return (
+                IntegerAttr.from_int_and_width(value, 32)
+                if isinstance(value, int)
+                else value
+            )
+
         super().__init__(
             properties={
-                "offset": offset,
-                "len": len,
-                "dimensions": dimensions,
+                "static_offset": i32(offset),
+                "static_len": i32(len),
+                "static_sizes": (
+                    builtin.DenseArrayBase.from_list(builtin.i64, sizes)
+                    if sizes is not None
+                    else None
+                ),
+                "static_strides": (
+                    builtin.DenseArrayBase.from_list(builtin.i64, strides)
+                    if strides is not None
+                    else None
+                ),
                 "pad_dimensions": pad_dimensions,
-                "pad_value": pad_value,
-                "bd_id": bd_id,
+                "pad_value": i32(pad_value),
+                "bd_id": i32(bd_id),
                 "packet": packet,
-                "burst_length": burst_length,
-                "next_bd_id": next_bd_id,
+                "burst_length": i32(burst_length),
+                "offset_parameter": offset_parameter,
+                "offset_state_table_idx": i32(offset_state_table_idx),
+                "next_bd_id": i32(next_bd_id),
             },
-            operands=[buffer],
+            operands=[buffer, None, None, [], []],
         )
 
 
@@ -1247,7 +1271,11 @@ class ObjectFifoOp(IRDLOperation):
             elemType,
             name,
             BDDimLayoutArrayAttr(BDDimLayoutArray(tuple())),
-            BDDimLayoutArrayArrayAttr(BDDimLayoutArrayArray(tuple(tuple()))),
+            BDDimLayoutArrayArrayAttr(
+                BDDimLayoutArrayArray(
+                    tuple(BDDimLayoutArray(tuple()) for _ in consumerTiles)
+                )
+            ),
             False,
             False,
             False,
