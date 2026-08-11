@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from typing import cast
 
 from typing_extensions import Self
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     BoolAttr,
     DenseArrayBase,
@@ -20,6 +21,7 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     irdl_op_definition,
     operand_def,
+    opt_operand_def,
     opt_prop_def,
     prop_def,
     region_def,
@@ -181,8 +183,11 @@ class DmaConfigureTaskOp(IRDLOperation):
     channel = prop_def(IntegerAttr[IntegerType])
     issue_token = opt_prop_def(BoolAttr)
     repeat_count = opt_prop_def(IntegerAttr[IntegerType])
+    repeat_count_val = opt_operand_def(builtin.i32)
+    bd_id_val = opt_operand_def(builtin.i32)
 
     traits = traits_def(HasParent(RuntimeSequenceOp))
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
         self,
@@ -203,7 +208,7 @@ class DmaConfigureTaskOp(IRDLOperation):
             repeat = IntegerAttr.from_int_and_width(repeat, 32)
 
         super().__init__(
-            operands=[tile],
+            operands=[tile, None, None],
             properties={
                 "direction": direction,
                 "channel": channel,
