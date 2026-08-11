@@ -11,7 +11,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      MLIR-AIE-Version: 1.3.0
+      MLIR-AIE-Version: 1.4.0
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
@@ -42,7 +42,7 @@ jobs:
       - name: Download and setup MLIR-AIE
         if: steps.cache-binary.outputs.cache-hit != 'true'
         run: |
-          wget -q https://github.com/Xilinx/mlir-aie/releases/download/v${{ env.MLIR-AIE-Version }}/mlir_aie-${{ env.MLIR-AIE-Version }}-cp310-cp310-manylinux_2_35_x86_64.whl -O mlir_aie.whl
+          wget -q https://github.com/Xilinx/mlir-aie/releases/download/v${{ env.MLIR-AIE-Version }}/mlir_aie-${{ env.MLIR-AIE-Version }}-cp311-cp311-manylinux_2_35_x86_64.whl -O mlir_aie.whl
           unzip -q mlir_aie.whl
       - name: Add MLIR-AIE to PATH
         run: |
