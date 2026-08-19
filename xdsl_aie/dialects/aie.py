@@ -1873,13 +1873,12 @@ class RuntimeSequenceOp(IRDLOperation):
         return cls(body=region, name=name)
 
 
+_TRACE_EVENT_SLOTS = 8
+
+
 @irdl_attr_definition
 class TraceEventAttr(ParametrizedAttribute):
-    """One core trace event, named as mlir-aie spells it.
-
-    The upstream enum has well over a hundred members and is versioned with the
-    hardware, so the name is carried as a string and left for mlir-aie to validate.
-    """
+    """A trace event name. The enum is versioned with the hardware, so mlir-aie validates it."""
 
     name = "aie.trace_event"
 
@@ -1897,7 +1896,18 @@ class TraceOp(IRDLOperation):
 
     tile = operand_def(IndexType)
     sym_name = prop_def(StringAttr)
-    region = region_def()
+    region = region_def("single_block")
+
+    traits = traits_def(
+        SymbolOpInterface(), HasParent(DeviceOp), SingleBlockImplicitTerminator(EndOp)
+    )
+
+    def verify_(self) -> None:
+        events = sum(isinstance(o, TraceEventOp) for o in self.region.block.ops)
+        if events > _TRACE_EVENT_SLOTS:
+            raise VerifyException(
+                f"trace unit supports maximum {_TRACE_EVENT_SLOTS} events, got {events}"
+            )
 
     def __init__(
         self, sym_name: str | StringAttr, tile: Operation | SSAValue, region: Region
@@ -1913,7 +1923,9 @@ class TraceOp(IRDLOperation):
 class TraceModeOp(IRDLOperation):
     name = "aie.trace.mode"
 
-    mode = prop_def(IntegerAttr[IntegerType])
+    mode = prop_def(IntegerAttr[I32])
+
+    traits = traits_def(HasParent(TraceOp))
 
     def __init__(self, mode: int = 0):
         super().__init__(properties={"mode": IntegerAttr.from_int_and_width(mode, 32)})
@@ -1923,26 +1935,38 @@ class TraceModeOp(IRDLOperation):
 class TracePacketOp(IRDLOperation):
     name = "aie.trace.packet"
 
-    type = prop_def(IntegerAttr[IntegerType])
+    type = prop_def(IntegerAttr[I32])
+    id = opt_prop_def(IntegerAttr[I32])
 
-    def __init__(self, packet_type: int = 0):
+    traits = traits_def(HasParent(TraceOp))
+
+    def __init__(self, packet_type: int = 0, id: int | None = None):
         super().__init__(
-            properties={"type": IntegerAttr.from_int_and_width(packet_type, 32)}
+            properties={
+                "type": IntegerAttr.from_int_and_width(packet_type, 32),
+                "id": None if id is None else IntegerAttr.from_int_and_width(id, 32),
+            }
         )
 
 
 @irdl_op_definition
 class TraceEventOp(IRDLOperation):
-    """One of the eight event slots. mlir-aie pads unused slots with NONE."""
+    """One event slot. Slots left out keep their previous value, so pad with NONE."""
 
     name = "aie.trace.event"
 
     event = prop_def(TraceEventAttr)
+    label = opt_prop_def(StringAttr)
 
-    def __init__(self, event: str | TraceEventAttr):
+    traits = traits_def(HasParent(TraceOp))
+
+    def __init__(
+        self, event: str | TraceEventAttr, label: str | StringAttr | None = None
+    ):
         super().__init__(
             properties={
-                "event": TraceEventAttr(event) if isinstance(event, str) else event
+                "event": TraceEventAttr(event) if isinstance(event, str) else event,
+                "label": StringAttr(label) if isinstance(label, str) else label,
             }
         )
 
@@ -1951,11 +1975,29 @@ class TraceEventOp(IRDLOperation):
 class TraceStartOp(IRDLOperation):
     name = "aie.trace.start"
 
-    broadcast = prop_def(IntegerAttr[IntegerType])
+    broadcast = opt_prop_def(IntegerAttr[I32])
+    event = opt_prop_def(TraceEventAttr)
 
-    def __init__(self, broadcast: int = 15):
+    traits = traits_def(HasParent(TraceOp))
+
+    def verify_(self) -> None:
+        if (self.broadcast is None) == (self.event is None):
+            raise VerifyException("must specify either broadcast or event")
+
+    def __init__(
+        self,
+        broadcast: int | None = 15,
+        event: str | TraceEventAttr | None = None,
+    ):
+        if event is not None:
+            broadcast = None
         super().__init__(
-            properties={"broadcast": IntegerAttr.from_int_and_width(broadcast, 32)}
+            properties={
+                "broadcast": None
+                if broadcast is None
+                else IntegerAttr.from_int_and_width(broadcast, 32),
+                "event": TraceEventAttr(event) if isinstance(event, str) else event,
+            }
         )
 
 
@@ -1963,11 +2005,29 @@ class TraceStartOp(IRDLOperation):
 class TraceStopOp(IRDLOperation):
     name = "aie.trace.stop"
 
-    broadcast = prop_def(IntegerAttr[IntegerType])
+    broadcast = opt_prop_def(IntegerAttr[I32])
+    event = opt_prop_def(TraceEventAttr)
 
-    def __init__(self, broadcast: int = 14):
+    traits = traits_def(HasParent(TraceOp))
+
+    def verify_(self) -> None:
+        if (self.broadcast is None) == (self.event is None):
+            raise VerifyException("must specify either broadcast or event")
+
+    def __init__(
+        self,
+        broadcast: int | None = 14,
+        event: str | TraceEventAttr | None = None,
+    ):
+        if event is not None:
+            broadcast = None
         super().__init__(
-            properties={"broadcast": IntegerAttr.from_int_and_width(broadcast, 32)}
+            properties={
+                "broadcast": None
+                if broadcast is None
+                else IntegerAttr.from_int_and_width(broadcast, 32),
+                "event": TraceEventAttr(event) if isinstance(event, str) else event,
+            }
         )
 
 
@@ -1977,10 +2037,12 @@ class TraceHostConfigOp(IRDLOperation):
 
     name = "aie.trace.host_config"
 
-    buffer_size = prop_def(IntegerAttr[IntegerType])
-    egress_shim_col = opt_prop_def(IntegerAttr[IntegerType])
+    buffer_size = prop_def(IntegerAttr[I32])
+    egress_shim_col = opt_prop_def(IntegerAttr[I32])
     reuse_output_buffer = opt_prop_def(BoolAttr)
-    routing = opt_prop_def(IntegerAttr[IntegerType])
+    routing = opt_prop_def(IntegerAttr[I32])
+
+    traits = traits_def(HasParent(RuntimeSequenceOp))
 
     def __init__(
         self,
