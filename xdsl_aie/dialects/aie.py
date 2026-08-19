@@ -1873,6 +1873,144 @@ class RuntimeSequenceOp(IRDLOperation):
         return cls(body=region, name=name)
 
 
+@irdl_attr_definition
+class TraceEventAttr(ParametrizedAttribute):
+    """One core trace event, named as mlir-aie spells it.
+
+    The upstream enum has well over a hundred members and is versioned with the
+    hardware, so the name is carried as a string and left for mlir-aie to validate.
+    """
+
+    name = "aie.trace_event"
+
+    event: ParameterDef[StringAttr]
+
+    def __init__(self, event: str | StringAttr):
+        super().__init__([StringAttr(event) if isinstance(event, str) else event])
+
+
+@irdl_op_definition
+class TraceOp(IRDLOperation):
+    """Trace configuration for one tile, referenced by name from trace.start_config."""
+
+    name = "aie.trace"
+
+    tile = operand_def(IndexType)
+    sym_name = prop_def(StringAttr)
+    region = region_def()
+
+    def __init__(
+        self, sym_name: str | StringAttr, tile: Operation | SSAValue, region: Region
+    ):
+        if isinstance(sym_name, str):
+            sym_name = StringAttr(sym_name)
+        super().__init__(
+            operands=[tile], properties={"sym_name": sym_name}, regions=[region]
+        )
+
+
+@irdl_op_definition
+class TraceModeOp(IRDLOperation):
+    name = "aie.trace.mode"
+
+    mode = prop_def(IntegerAttr[IntegerType])
+
+    def __init__(self, mode: int = 0):
+        super().__init__(properties={"mode": IntegerAttr.from_int_and_width(mode, 32)})
+
+
+@irdl_op_definition
+class TracePacketOp(IRDLOperation):
+    name = "aie.trace.packet"
+
+    type = prop_def(IntegerAttr[IntegerType])
+
+    def __init__(self, packet_type: int = 0):
+        super().__init__(
+            properties={"type": IntegerAttr.from_int_and_width(packet_type, 32)}
+        )
+
+
+@irdl_op_definition
+class TraceEventOp(IRDLOperation):
+    """One of the eight event slots. mlir-aie pads unused slots with NONE."""
+
+    name = "aie.trace.event"
+
+    event = prop_def(TraceEventAttr)
+
+    def __init__(self, event: str | TraceEventAttr):
+        super().__init__(
+            properties={
+                "event": TraceEventAttr(event) if isinstance(event, str) else event
+            }
+        )
+
+
+@irdl_op_definition
+class TraceStartOp(IRDLOperation):
+    name = "aie.trace.start"
+
+    broadcast = prop_def(IntegerAttr[IntegerType])
+
+    def __init__(self, broadcast: int = 15):
+        super().__init__(
+            properties={"broadcast": IntegerAttr.from_int_and_width(broadcast, 32)}
+        )
+
+
+@irdl_op_definition
+class TraceStopOp(IRDLOperation):
+    name = "aie.trace.stop"
+
+    broadcast = prop_def(IntegerAttr[IntegerType])
+
+    def __init__(self, broadcast: int = 14):
+        super().__init__(
+            properties={"broadcast": IntegerAttr.from_int_and_width(broadcast, 32)}
+        )
+
+
+@irdl_op_definition
+class TraceHostConfigOp(IRDLOperation):
+    """Sizes the DDR trace buffer. Lowering appends that buffer to the runtime sequence."""
+
+    name = "aie.trace.host_config"
+
+    buffer_size = prop_def(IntegerAttr[IntegerType])
+    egress_shim_col = opt_prop_def(IntegerAttr[IntegerType])
+    reuse_output_buffer = opt_prop_def(BoolAttr)
+    routing = opt_prop_def(IntegerAttr[IntegerType])
+
+    def __init__(
+        self,
+        buffer_size: int,
+        egress_shim_col: int = 0,
+        reuse_output_buffer: bool = False,
+        routing: int = 0,
+    ):
+        super().__init__(
+            properties={
+                "buffer_size": IntegerAttr.from_int_and_width(buffer_size, 32),
+                "egress_shim_col": IntegerAttr.from_int_and_width(egress_shim_col, 32),
+                "reuse_output_buffer": BoolAttr.from_bool(reuse_output_buffer),
+                "routing": IntegerAttr.from_int_and_width(routing, 32),
+            }
+        )
+
+
+@irdl_op_definition
+class TraceStartConfigOp(IRDLOperation):
+    name = "aie.trace.start_config"
+
+    trace_config = prop_def(FlatSymbolRefAttr)
+
+    def __init__(self, trace_config: str | FlatSymbolRefAttr):
+        if isinstance(trace_config, str):
+            trace_config = FlatSymbolRefAttr(trace_config)
+        super().__init__(properties={"trace_config": trace_config})
+
+
 AIE = Dialect(
     "aie",
     [
@@ -1918,6 +2056,14 @@ AIE = Dialect(
         WireOp,
         EndOp,
         RuntimeSequenceOp,
+        TraceOp,
+        TraceModeOp,
+        TracePacketOp,
+        TraceEventOp,
+        TraceStartOp,
+        TraceStopOp,
+        TraceHostConfigOp,
+        TraceStartConfigOp,
     ],
     [
         BDDimLayoutArrayAttr,
@@ -1925,5 +2071,6 @@ AIE = Dialect(
         WireBundleAttr,
         ObjectFIFO,
         ObjectFIFOSubview,
+        TraceEventAttr,
     ],
 )
