@@ -1875,6 +1875,12 @@ class RuntimeSequenceOp(IRDLOperation):
 
 _TRACE_EVENT_SLOTS = 8
 
+# Broadcast channels mlir-aie's own emitter uses so every traced tile starts and stops
+# together. Not property defaults: start and stop take one of broadcast or event, never
+# both, so defaulting either would conflict with the other.
+_TRACE_START_BROADCAST = 15
+_TRACE_STOP_BROADCAST = 14
+
 
 @irdl_attr_definition
 class TraceEventAttr(ParametrizedAttribute):
@@ -1923,6 +1929,7 @@ class TraceOp(IRDLOperation):
 class TraceModeOp(IRDLOperation):
     name = "aie.trace.mode"
 
+    # 0 Event-Time, 1 Event-PC, 2 Execution
     mode = prop_def(IntegerAttr[I32])
 
     traits = traits_def(HasParent(TraceOp))
@@ -1935,6 +1942,7 @@ class TraceModeOp(IRDLOperation):
 class TracePacketOp(IRDLOperation):
     name = "aie.trace.packet"
 
+    # 0 core, 1 mem, 2 shim tile, 3 mem tile
     type = prop_def(IntegerAttr[I32])
     id = opt_prop_def(IntegerAttr[I32])
 
@@ -1986,7 +1994,7 @@ class TraceStartOp(IRDLOperation):
 
     def __init__(
         self,
-        broadcast: int | None = 15,
+        broadcast: int | None = _TRACE_START_BROADCAST,
         event: str | TraceEventAttr | None = None,
     ):
         if event is not None:
@@ -2016,7 +2024,7 @@ class TraceStopOp(IRDLOperation):
 
     def __init__(
         self,
-        broadcast: int | None = 14,
+        broadcast: int | None = _TRACE_STOP_BROADCAST,
         event: str | TraceEventAttr | None = None,
     ):
         if event is not None:
@@ -2040,6 +2048,7 @@ class TraceHostConfigOp(IRDLOperation):
     buffer_size = prop_def(IntegerAttr[I32])
     egress_shim_col = opt_prop_def(IntegerAttr[I32])
     reuse_output_buffer = opt_prop_def(BoolAttr)
+    # 0 is the only strategy v1.4.0 defines, a single shim destination
     routing = opt_prop_def(IntegerAttr[I32])
 
     traits = traits_def(HasParent(RuntimeSequenceOp))
