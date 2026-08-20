@@ -2067,9 +2067,9 @@ class TraceStartConfigOp(IRDLOperation):
 
     trace_config = prop_def(FlatSymbolRefAttr)
 
-    def __init__(self, trace_config: str | FlatSymbolRefAttr):
+    def __init__(self, trace_config: str | SymbolRefAttr):
         if isinstance(trace_config, str):
-            trace_config = FlatSymbolRefAttr(trace_config)
+            trace_config = SymbolRefAttr(trace_config)
         super().__init__(properties={"trace_config": trace_config})
 
 
