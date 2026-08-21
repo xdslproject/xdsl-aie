@@ -1873,6 +1873,215 @@ class RuntimeSequenceOp(IRDLOperation):
         return cls(body=region, name=name)
 
 
+_TRACE_EVENT_SLOTS = 8
+
+# Broadcast channels mlir-aie's own emitter uses so every traced tile starts and stops
+# together. Not property defaults: start and stop take one of broadcast or event, never
+# both, so defaulting either would conflict with the other.
+_TRACE_START_BROADCAST = 15
+_TRACE_STOP_BROADCAST = 14
+
+
+@irdl_attr_definition
+class TraceEventAttr(ParametrizedAttribute):
+    """A trace event name. The enum is versioned with the hardware, so mlir-aie validates it."""
+
+    name = "aie.trace_event"
+
+    event: ParameterDef[StringAttr]
+
+    def __init__(self, event: str | StringAttr):
+        super().__init__([StringAttr(event) if isinstance(event, str) else event])
+
+
+@irdl_op_definition
+class TraceOp(IRDLOperation):
+    """Trace configuration for one tile, referenced by name from trace.start_config."""
+
+    name = "aie.trace"
+
+    tile = operand_def(IndexType)
+    sym_name = prop_def(StringAttr)
+    region = region_def("single_block")
+
+    traits = traits_def(
+        SymbolOpInterface(), HasParent(DeviceOp), SingleBlockImplicitTerminator(EndOp)
+    )
+
+    def verify_(self) -> None:
+        events = sum(isinstance(o, TraceEventOp) for o in self.region.block.ops)
+        if events > _TRACE_EVENT_SLOTS:
+            raise VerifyException(
+                f"trace unit supports maximum {_TRACE_EVENT_SLOTS} events, got {events}"
+            )
+
+    def __init__(
+        self, sym_name: str | StringAttr, tile: Operation | SSAValue, region: Region
+    ):
+        if isinstance(sym_name, str):
+            sym_name = StringAttr(sym_name)
+        super().__init__(
+            operands=[tile], properties={"sym_name": sym_name}, regions=[region]
+        )
+
+
+@irdl_op_definition
+class TraceModeOp(IRDLOperation):
+    name = "aie.trace.mode"
+
+    # 0 Event-Time, 1 Event-PC, 2 Execution
+    mode = prop_def(IntegerAttr[I32])
+
+    traits = traits_def(HasParent(TraceOp))
+
+    def __init__(self, mode: int = 0):
+        super().__init__(properties={"mode": IntegerAttr.from_int_and_width(mode, 32)})
+
+
+@irdl_op_definition
+class TracePacketOp(IRDLOperation):
+    name = "aie.trace.packet"
+
+    # 0 core, 1 mem, 2 shim tile, 3 mem tile
+    type = prop_def(IntegerAttr[I32])
+    id = opt_prop_def(IntegerAttr[I32])
+
+    traits = traits_def(HasParent(TraceOp))
+
+    def __init__(self, packet_type: int = 0, id: int | None = None):
+        super().__init__(
+            properties={
+                "type": IntegerAttr.from_int_and_width(packet_type, 32),
+                "id": None if id is None else IntegerAttr.from_int_and_width(id, 32),
+            }
+        )
+
+
+@irdl_op_definition
+class TraceEventOp(IRDLOperation):
+    """One event slot. Slots left out keep their previous value, so pad with NONE."""
+
+    name = "aie.trace.event"
+
+    event = prop_def(TraceEventAttr)
+    label = opt_prop_def(StringAttr)
+
+    traits = traits_def(HasParent(TraceOp))
+
+    def __init__(
+        self, event: str | TraceEventAttr, label: str | StringAttr | None = None
+    ):
+        super().__init__(
+            properties={
+                "event": TraceEventAttr(event) if isinstance(event, str) else event,
+                "label": StringAttr(label) if isinstance(label, str) else label,
+            }
+        )
+
+
+@irdl_op_definition
+class TraceStartOp(IRDLOperation):
+    name = "aie.trace.start"
+
+    broadcast = opt_prop_def(IntegerAttr[I32])
+    event = opt_prop_def(TraceEventAttr)
+
+    traits = traits_def(HasParent(TraceOp))
+
+    def verify_(self) -> None:
+        if (self.broadcast is None) == (self.event is None):
+            raise VerifyException("must specify either broadcast or event")
+
+    def __init__(
+        self,
+        broadcast: int | None = _TRACE_START_BROADCAST,
+        event: str | TraceEventAttr | None = None,
+    ):
+        if event is not None:
+            broadcast = None
+        super().__init__(
+            properties={
+                "broadcast": None
+                if broadcast is None
+                else IntegerAttr.from_int_and_width(broadcast, 32),
+                "event": TraceEventAttr(event) if isinstance(event, str) else event,
+            }
+        )
+
+
+@irdl_op_definition
+class TraceStopOp(IRDLOperation):
+    name = "aie.trace.stop"
+
+    broadcast = opt_prop_def(IntegerAttr[I32])
+    event = opt_prop_def(TraceEventAttr)
+
+    traits = traits_def(HasParent(TraceOp))
+
+    def verify_(self) -> None:
+        if (self.broadcast is None) == (self.event is None):
+            raise VerifyException("must specify either broadcast or event")
+
+    def __init__(
+        self,
+        broadcast: int | None = _TRACE_STOP_BROADCAST,
+        event: str | TraceEventAttr | None = None,
+    ):
+        if event is not None:
+            broadcast = None
+        super().__init__(
+            properties={
+                "broadcast": None
+                if broadcast is None
+                else IntegerAttr.from_int_and_width(broadcast, 32),
+                "event": TraceEventAttr(event) if isinstance(event, str) else event,
+            }
+        )
+
+
+@irdl_op_definition
+class TraceHostConfigOp(IRDLOperation):
+    """Sizes the DDR trace buffer. Lowering appends that buffer to the runtime sequence."""
+
+    name = "aie.trace.host_config"
+
+    buffer_size = prop_def(IntegerAttr[I32])
+    egress_shim_col = opt_prop_def(IntegerAttr[I32])
+    reuse_output_buffer = opt_prop_def(BoolAttr)
+    # 0 is the only strategy v1.4.0 defines, a single shim destination
+    routing = opt_prop_def(IntegerAttr[I32])
+
+    traits = traits_def(HasParent(RuntimeSequenceOp))
+
+    def __init__(
+        self,
+        buffer_size: int,
+        egress_shim_col: int = 0,
+        reuse_output_buffer: bool = False,
+        routing: int = 0,
+    ):
+        super().__init__(
+            properties={
+                "buffer_size": IntegerAttr.from_int_and_width(buffer_size, 32),
+                "egress_shim_col": IntegerAttr.from_int_and_width(egress_shim_col, 32),
+                "reuse_output_buffer": BoolAttr.from_bool(reuse_output_buffer),
+                "routing": IntegerAttr.from_int_and_width(routing, 32),
+            }
+        )
+
+
+@irdl_op_definition
+class TraceStartConfigOp(IRDLOperation):
+    name = "aie.trace.start_config"
+
+    trace_config = prop_def(FlatSymbolRefAttr)
+
+    def __init__(self, trace_config: str | SymbolRefAttr):
+        if isinstance(trace_config, str):
+            trace_config = SymbolRefAttr(trace_config)
+        super().__init__(properties={"trace_config": trace_config})
+
+
 AIE = Dialect(
     "aie",
     [
@@ -1918,6 +2127,14 @@ AIE = Dialect(
         WireOp,
         EndOp,
         RuntimeSequenceOp,
+        TraceOp,
+        TraceModeOp,
+        TracePacketOp,
+        TraceEventOp,
+        TraceStartOp,
+        TraceStopOp,
+        TraceHostConfigOp,
+        TraceStartConfigOp,
     ],
     [
         BDDimLayoutArrayAttr,
@@ -1925,5 +2142,6 @@ AIE = Dialect(
         WireBundleAttr,
         ObjectFIFO,
         ObjectFIFOSubview,
+        TraceEventAttr,
     ],
 )
