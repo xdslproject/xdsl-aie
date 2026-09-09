@@ -41,7 +41,6 @@ from xdsl.ir import (
     EnumAttribute,
     OpaqueSyntaxAttribute,
     Operation,
-    OpResult,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -65,6 +64,7 @@ from xdsl.irdl import (
     successor_def,
     traits_def,
     var_operand_def,
+    var_result_def,
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
@@ -188,20 +188,6 @@ class ObjectFIFO(Generic[AttributeInvT], ParametrizedAttribute, TypeAttribute):
         return ObjectFIFO(
             [builtin.MemRefType(referenced_type, shape, layout, memory_space)]
         )
-
-
-@irdl_attr_definition
-class ObjectFIFOSubview(Generic[AttributeInvT], ParametrizedAttribute, TypeAttribute):
-    name = "aie.objectfifosubview"
-
-    buffer: ParameterDef[builtin.MemRefType[AttributeInvT]]
-
-    @staticmethod
-    def from_element_type_and_shape(
-        element_type: AttributeInvT,
-        shape: Iterable[int | IntAttr],
-    ) -> ObjectFIFOSubview[AttributeInvT]:
-        return ObjectFIFOSubview([builtin.MemRefType(element_type, shape)])
 
 
 class BDDimLayout(tuple[int, int]):
@@ -532,6 +518,9 @@ class DMABDOp(IRDLOperation):
     static_sizes = opt_prop_def(builtin.DenseArrayBase)
     static_strides = opt_prop_def(builtin.DenseArrayBase)
 
+    # A runtime buffer descriptor id, beside the bd_id attribute.
+    bd_id_val = opt_operand_def(builtin.i32)
+
     pad_dimensions = opt_prop_def(BDDimLayoutArrayAttr)
     pad_value = opt_prop_def(IntegerAttr[IntegerType])
     bd_id = opt_prop_def(IntegerAttr[IntegerType])
@@ -591,7 +580,7 @@ class DMABDOp(IRDLOperation):
                 "offset_state_table_idx": i32(offset_state_table_idx),
                 "next_bd_id": i32(next_bd_id),
             },
-            operands=[buffer, None, None, [], []],
+            operands=[buffer, None, None, [], [], None],
         )
 
 
@@ -1001,15 +990,15 @@ class ObjectFifoAcquireOp(IRDLOperation):
     name = "aie.objectfifo.acquire"
 
     port = prop_def(IntegerAttr[IntegerType])
-    size = prop_def(IntegerAttr[IntegerType])
     objFifo_name = prop_def(SymbolRefAttr)
 
-    result = result_def(ObjectFIFOSubview)
+    # One memref per acquired object; the count replaces the size property.
+    objects = var_result_def(builtin.MemRefType)
 
     def __init__(
         self,
         port: IntegerAttr[IntegerType],
-        size: IntegerAttr[IntegerType],
+        size: int,
         object_fifo: str | SymbolRefAttr,
         shape: Iterable[int | IntAttr],
         element_type: Attribute,
@@ -1017,23 +1006,22 @@ class ObjectFifoAcquireOp(IRDLOperation):
         if isinstance(object_fifo, str):
             object_fifo = SymbolRefAttr(object_fifo)
 
-        result_subview = ObjectFIFOSubview[Attribute].from_element_type_and_shape(
-            element_type, shape
-        )
         super().__init__(
-            properties={"objFifo_name": object_fifo, "port": port, "size": size},
-            result_types=[result_subview],
+            properties={"objFifo_name": object_fifo, "port": port},
+            result_types=[[builtin.MemRefType(element_type, shape)] * size],
         )
+
+    @property
+    def size(self) -> int:
+        return len(self.objects)
 
     def print(self, printer: Printer):
         printer.print(f" @{self.objFifo_name.root_reference.data}")
         printer.print(
-            f"({ObjectFifoPortEnum.from_int(self.port.value.data).value}, {self.size.value.data})"
+            f"({ObjectFifoPortEnum.from_int(self.port.value.data).value}, {self.size})"
         )
-        printer.print(" : !aie.objectfifosubview<")
-        assert isa(self.result.type, ObjectFIFOSubview[Attribute])
-        printer.print(self.result.type.buffer)
-        printer.print(">")
+        printer.print(" : ")
+        printer.print_list(self.objects.types, printer.print_attribute)
 
     @classmethod
     def parse(cls, parser: Parser) -> ObjectFifoAcquireOp:
@@ -1041,23 +1029,23 @@ class ObjectFifoAcquireOp(IRDLOperation):
         parser.parse_characters("(")
         port = parser.parse_str_enum(ObjectFifoPortEnum)
         parser.parse_characters(",")
-        size = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
+        size = parser.parse_integer()
         parser.parse_characters(")")
         parser.parse_characters(":")
-        parser.parse_characters("!aie.objectfifosubview")
-        parser.parse_characters("<")
-        ofifo_type = parser.parse_type()
-        parser.parse_characters(">")
+        types = parser.parse_comma_separated_list(
+            Parser.Delimiter.NONE, parser.parse_type
+        )
+        if len(types) != size:
+            parser.raise_error(f"expected {size} object types, got {len(types)}")
+        ofifo_type = types[0]
         assert isa(ofifo_type, MemRefType[Attribute])
-        shape = ofifo_type.shape
-        element_type = ofifo_type.element_type
 
         return ObjectFifoAcquireOp(
             IntegerAttr.from_int_and_width(port.get_int(), 32),
             size,
             object_fifo,
-            shape,
-            element_type,
+            ofifo_type.get_shape(),
+            ofifo_type.element_type,
         )
 
 
@@ -1112,56 +1100,6 @@ class ObjectFifoRegisterExternalBuffersOp(IRDLOperation):
         parser.parse_characters(")")
 
         return ObjectFifoRegisterExternalBuffersOp(tile, external_buffers, object_fifo)
-
-
-@irdl_op_definition
-class ObjectFIFOSubviewAccessOp(IRDLOperation):
-    name = "aie.objectfifo.subview.access"
-
-    index = prop_def(IntegerAttr[IntegerType])
-    subview = operand_def(ObjectFIFOSubview[Attribute])
-    output = result_def(builtin.MemRefType)
-
-    def __init__(self, index: IntegerAttr[IntegerType], subview: Operation | SSAValue):
-        assert isinstance(subview, ObjectFifoAcquireOp)
-        assert isa(subview.result.type, ObjectFIFOSubview[Attribute])
-        subview.result.type.buffer
-        result_type = builtin.MemRefType(
-            subview.result.type.buffer.element_type, subview.result.type.buffer.shape
-        )
-        super().__init__(
-            properties={"index": index}, operands=[subview], result_types=[result_type]
-        )
-
-    def print(self, printer: Printer):
-        assert isa(self.subview.type, ObjectFIFOSubview[Attribute])
-        printer.print(" ")
-        printer.print_operand(self.subview)
-        printer.print("[", self.index.value.data, "] : ")
-        printer.print(
-            "!aie.objectfifosubview<",
-            self.subview.type.buffer,
-            "> -> ",
-            self.subview.type.buffer,
-        )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> ObjectFIFOSubviewAccessOp:
-        subview = parser.parse_operand()
-        if isinstance(subview, OpResult):
-            subview = subview.op
-        parser.parse_characters("[")
-        index = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
-        parser.parse_characters("]")
-        parser.parse_characters(":")
-        parser.parse_characters("!aie.objectfifosubview")
-        parser.parse_characters("<")
-        parser.parse_type()  # subview type
-        parser.parse_characters(">")
-        parser.parse_characters("->")
-        parser.parse_type()  # return type
-
-        return ObjectFIFOSubviewAccessOp(index, subview)
 
 
 @irdl_op_definition
@@ -2106,7 +2044,6 @@ AIE = Dialect(
         NextBDOp,
         ObjectFifoAcquireOp,
         ObjectFifoRegisterExternalBuffersOp,
-        ObjectFIFOSubviewAccessOp,
         ObjectFifoOp,
         ObjectFIFOReleaseOp,
         ObjectFifoLinkOp,
@@ -2141,7 +2078,6 @@ AIE = Dialect(
         BDDimLayoutArrayArrayAttr,
         WireBundleAttr,
         ObjectFIFO,
-        ObjectFIFOSubview,
         TraceEventAttr,
     ],
 )
