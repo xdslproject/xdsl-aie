@@ -184,10 +184,8 @@ class DmaConfigureTaskOp(IRDLOperation):
     issue_token = opt_prop_def(BoolAttr)
     repeat_count = opt_prop_def(IntegerAttr[IntegerType])
     repeat_count_val = opt_operand_def(builtin.i32)
-    bd_id_val = opt_operand_def(builtin.i32)
 
     traits = traits_def(HasParent(RuntimeSequenceOp))
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
         self,
@@ -208,7 +206,7 @@ class DmaConfigureTaskOp(IRDLOperation):
             repeat = IntegerAttr.from_int_and_width(repeat, 32)
 
         super().__init__(
-            operands=[tile, None, None],
+            operands=[tile, None],
             properties={
                 "direction": direction,
                 "channel": channel,
